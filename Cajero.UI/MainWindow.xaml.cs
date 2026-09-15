@@ -19,23 +19,6 @@ namespace Cajero.UI
         public MainWindow()
         {
             InitializeComponent();
-            // 1. Instanciar la capa de datos (El código de Martín)
-            var gestorArchivos = new Cajerro.DAL.GestorArchivosCSV();
-
-            // 2. Instanciar tu capa de negocio (Tu código)
-            var usuarioLogica = new Cajero.BLL.UsuarioLogica(gestorArchivos);
-
-            // 3. Prueba de lectura
-            try
-            {
-                // Usa un número de tarjeta que hayas escrito dentro de Usuarios.csv
-                var info = usuarioLogica.VerSaldo("1234567890123456");
-                System.Windows.MessageBox.Show($"¡Conexión exitosa! Saldo actual: {info.Saldo}");
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Error en la prueba: {ex.Message}");
-            }
         }
     }
 }
