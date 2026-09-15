@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Cajero.BLL\Cajero.BLL.csproj" />
     <ProjectReference Include="..\Cajero.Hardware\Cajero.Hardware.csproj" />
+    <ProjectReference Include="..\Cajerro.DAL\Cajero.DAL.csproj" />
   </ItemGroup>
 
 </Project>
