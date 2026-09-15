@@ -1,0 +1,87 @@
+﻿<Window x:Class="Cajero.UI.RetiroWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Retiro de Efectivo" 
+        Height="550" Width="650"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource BgPrimaryBrush}">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Encabezado -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Retiro con Desglose Manual" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+            <TextBlock Text="Ingrese la cantidad de billetes que desea para cada denominación." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Formulario de Billetes -->
+        <Border Grid.Row="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="24">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Columna Izquierda (Billetes Grandes) -->
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q200:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ200" Width="80" Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q100:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ100" Width="80" Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q50:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ50" Width="80" Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q20:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ20" Width="80"  Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Columna Derecha (Billetes Pequeños) -->
+                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q10:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ10" Width="80" Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q5:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ5" Width="80" Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Monedas de Q1:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ1" Width="80" Padding="0" Height="36" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Resumen y Botones -->
+        <Grid Grid.Row="2" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Text="Total a Retirar:" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBlock x:Name="lblTotal" Text="Q 0.00" FontSize="26" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Cancelar" Style="{StaticResource OutlineButton}" Width="100" Height="40" Margin="0,0,12,0" Click="BtnCancelar_Click"/>
+                <Button Content="Confirmar Retiro" Style="{StaticResource PrimaryButton}" Width="140" Height="40" Click="BtnConfirmar_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Cajerro.DAL\Cajerro.DAL.csproj" />
-    <ProjectReference Include="..\Cajerro.DAL\Cajero.DAL.csproj" />
   </ItemGroup>
 
 </Project>

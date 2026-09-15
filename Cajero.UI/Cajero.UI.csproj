@@ -8,10 +8,11 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Cajero.BLL\Cajero.BLL.csproj" />
-    <ProjectReference Include="..\Cajero.Hardware\Cajero.Hardware.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Cajero.BLL\Cajero.BLL.csproj" />
+		<ProjectReference Include="..\Cajerro.DAL\Cajerro.DAL.csproj" />
+		<ProjectReference Include="..\Cajero.Hardware\Cajero.Hardware.csproj" />
+	</ItemGroup>
 
   <ItemGroup>
     <None Update="Boveda.csv">

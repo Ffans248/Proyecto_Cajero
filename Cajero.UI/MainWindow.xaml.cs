@@ -83,8 +83,17 @@ namespace Cajero.UI
         {
             if (sender is FrameworkElement element && element.Tag is string operacion)
             {
-                MessageBox.Show($"Operación seleccionada: [{operacion}].\nPunto de enlace UI listo para la capa BLL.",
-                                "Cajero Automático", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (operacion == "Retiro")
+                {
+                    // Le pasamos el token del usuario logueado a la nueva ventana
+                    RetiroWindow retiroWin = new RetiroWindow(_rfidToken);
+                    retiroWin.Owner = this; // Para que se centre respecto a esta ventana
+                    retiroWin.ShowDialog();
+                }
+                else
+                {
+                    MessageBox.Show($"Operación [{operacion}] en construcción...");
+                }
             }
         }
 
