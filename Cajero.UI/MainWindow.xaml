@@ -1,12 +1,218 @@
-﻿<Window x:Class="Cajero.UI.MainWindow"
+<Window x:Class="Cajero.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Cajero.UI"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Cajero Automático - Plataforma Principal" 
+        Height="700" Width="1080"
+        MinHeight="600" MinWidth="850"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgPrimaryBrush}">
 
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="93" Height="38" Background="{StaticResource AccentPrimaryBrush}" CornerRadius="10" Margin="0,0,12,0">
+                        <TextBlock Text="NEXUSBANK" Foreground="#FFFFFF" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center" Width="83" Height="18"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="{StaticResource BgPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="20" Padding="14,6" Margin="0,0,14,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse x:Name="imgEstadoSesion" Width="8" Height="8" Fill="{StaticResource AccentSuccessBrush}" Margin="0,0,8,0"/>
+                            <TextBlock Text="Sesión: " FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock x:Name="lblRolUsuario" Text="Administrador" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="2,0,8,0"/>
+                            <TextBlock x:Name="lblTokenActivo" Text="(RFID-ADM-001)" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Button x:Name="btnCerrarSesion" 
+                            Content="Cerrar Sesión" 
+                            Style="{StaticResource OutlineButton}" 
+                            Padding="12,6" 
+                            FontSize="12" 
+                            Click="BtnCerrarSesion_Click"/>
+                </StackPanel>
+                <TextBlock Text="CAJERO AUTOMÁTICO" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Grid.Column="1" Margin="10,-1,366,19"/>
+                <TextBlock Text="Terminal Bancario #04 - Red Central" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Grid.Column="1" Margin="10,19,366,5"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" MinWidth="220" MaxWidth="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0" Padding="18,24">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="MENÚ DE NAVEGACIÓN" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Orientation="Vertical">
+                        <Button x:Name="btnNavCliente" 
+                                Content="Operaciones de Cliente" 
+                                Style="{StaticResource NavMenuButton}" 
+                                Click="BtnNavCliente_Click"/>
+
+                        <Button x:Name="btnNavAdmin" 
+                                Content="Panel Administrador" 
+                                Style="{StaticResource NavMenuButton}" 
+                                Click="BtnNavAdmin_Click"/>
+
+                        <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,12"/>
+
+                        <Button x:Name="btnAbrirVentanaAdmin" 
+                                Content="Panel de Administración" 
+                                Style="{StaticResource OutlineButton}" 
+                                HorizontalContentAlignment="Center" 
+                                Margin="0,4" 
+                                Click="BtnAbrirVentanaAdmin_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1" Background="{StaticResource BgPrimaryBrush}">
+
+                <ScrollViewer x:Name="viewAdmin" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="32">
+                    <StackPanel MaxWidth="850" HorizontalAlignment="Stretch">
+
+                        <TextBlock Text="Centro de Control de Administración" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Gestión general del cajero, usuarios autorizados y auditoría de transacciones." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,24"/>
+
+                        <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="24" Margin="0,0,0,20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Gestión de Usuarios y Transacciones" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Registre nuevos clientes con límite diario y audite el DataGrid de transacciones en tiempo real." 
+                                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" 
+                                        Content="Gestionar en Panel de Administración" 
+                                        Style="{StaticResource PrimaryButton}" 
+                                        Height="44" 
+                                        VerticalAlignment="Center" 
+                                        Margin="20,0,0,0"
+                                        Click="BtnAbrirVentanaAdmin_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <Grid Margin="0,0,0,20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="0,0,10,0">
+                                <StackPanel>
+                                    <TextBlock Text="Estado Terminal" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="Operativo" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Gaveta de efectivo lista" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="5,0,5,0">
+                                <StackPanel>
+                                    <TextBlock Text="Transacciones Hoy" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="Control Diario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Auditoría visual activa" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="10,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Nivel de Acceso" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="Superusuario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="viewCliente" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="32" Visibility="Collapsed">
+                    <StackPanel MaxWidth="850" HorizontalAlignment="Stretch">
+
+                        <TextBlock Text="Bienvenido al Cajero Automático" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Seleccione la operación bancaria que desea realizar." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,24"/>
+
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Row="0" Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,10,14">
+                                <StackPanel>
+                                    <TextBlock Text="Retiro de Efectivo" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Retire dinero en efectivo respetando su límite diario." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
+                                    <Button Content="Realizar Retiro" Style="{StaticResource PrimaryButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="Retiro"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="10,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Consulta de Saldo" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Verifique los fondos disponibles en su cuenta bancaria." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
+                                    <Button Content="Consultar Saldo" Style="{StaticResource OutlineButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="ConsultaSaldo"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,10,0">
+                                <StackPanel>
+                                    <TextBlock Text="Depósito a Cuenta" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Ingrese efectivo para acreditar fondos a su cuenta." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
+                                    <Button Content="Realizar Depósito" Style="{StaticResource OutlineButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="Deposito"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="10,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Cambio de Clave PIN" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Actualice su código de seguridad de 4 dígitos." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
+                                    <Button Content="Actualizar PIN" Style="{StaticResource OutlineButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="CambioPin"/>
+                                </StackPanel>
+                            </Border>
+
+                        </Grid>
+
+                    </StackPanel>
+                </ScrollViewer>
+
+            </Grid>
+        </Grid>
     </Grid>
 </Window>
