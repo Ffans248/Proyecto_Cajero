@@ -49,6 +49,11 @@
                         <TextBlock Text="Ingrese los datos requeridos para dar de alta al cliente." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,20" TextWrapping="Wrap"/>
 
                         <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="Número de Tarjeta (16 dígitos)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                            <TextBox x:Name="txtTarjeta" Height="42" FontSize="14" MaxLength="16"/>
+                        </StackPanel>
+                        
+                        <StackPanel Margin="0,0,0,16">
                             <TextBlock Text="Nombre Completo" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
                             <TextBox x:Name="txtNombre" Height="42" FontSize="14"/>
                         </StackPanel>

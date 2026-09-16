@@ -18,14 +18,15 @@ namespace Cajero.UI
 
         private void BtnRegistrarUsuario_Click(object sender, RoutedEventArgs e)
         {
+            string tarjeta = txtTarjeta.Text.Trim(); // El campo nuevo
             string nombre = txtNombre.Text.Trim();
             string pin = pwdNuevoPin.Password;
             string limiteText = txtLimite.Text.Trim();
 
-            if (string.IsNullOrWhiteSpace(nombre) || string.IsNullOrWhiteSpace(pin) || string.IsNullOrWhiteSpace(limiteText))
+            if (string.IsNullOrWhiteSpace(tarjeta) || string.IsNullOrWhiteSpace(nombre) || string.IsNullOrWhiteSpace(pin) || string.IsNullOrWhiteSpace(limiteText))
             {
                 lblEstadoRegistro.Visibility = Visibility.Visible;
-                lblEstadoRegistro.Text = "Por favor complete todos los campos obligatorios.";
+                lblEstadoRegistro.Text = "Complete todos los campos obligatorios.";
                 return;
             }
 
@@ -36,15 +37,31 @@ namespace Cajero.UI
                 return;
             }
 
-            lblEstadoRegistro.Visibility = Visibility.Visible;
-            lblEstadoRegistro.Text = $"Usuario '{nombre}' registrado exitosamente.";
+            // Conectamos con el DAL para guardar el usuario
+            var dal = new Cajerro.DAL.GestorArchivosCSV();
 
-            MessageBox.Show($"El usuario '{nombre}' ha sido registrado correctamente en el sistema.",
-                            "NEXUSBANK - Registro",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
+            // Validar que la tarjeta no exista ya
+            if (dal.ObtenerUsuarioPorTarjeta(tarjeta) != null)
+            {
+                lblEstadoRegistro.Visibility = Visibility.Visible;
+                lblEstadoRegistro.Text = "Este número de tarjeta ya existe en el sistema.";
+                return;
+            }
 
-            LimpiarFormularioRegistro();
+            var nuevoUsuario = new Cajerro.DAL.Modelos.Usuario
+            {
+                NumeroTarjeta = tarjeta,
+                Nombre = nombre,
+                PIN = pin,
+                LimiteDiario = limite,
+                SaldoActual = 0m // Saldo inicial en cero
+            };
+
+            if (dal.CrearNuevoUsuario(nuevoUsuario))
+            {
+                MessageBox.Show($"El usuario '{nombre}' ha sido registrado correctamente en el sistema.", "NEXUSBANK - Registro", MessageBoxButton.OK, MessageBoxImage.Information);
+                LimpiarFormularioRegistro();
+            }
         }
 
         private void BtnLimpiarCampos_Click(object sender, RoutedEventArgs e)
@@ -76,6 +93,25 @@ namespace Cajero.UI
 
         private void BtnActualizarTransacciones_Click(object sender, RoutedEventArgs e)
         {
+            var dal = new Cajerro.DAL.GestorArchivosCSV();
+            var transaccionesCSV = dal.ObtenerTodasLasTransacciones();
+
+            _transacciones.Clear();
+
+            // Llenamos el DataGrid con los datos reales del archivo
+            int contador = 1;
+            foreach (var t in transaccionesCSV)
+            {
+                _transacciones.Add(new TransaccionItem(
+                    $"TX-{contador++:D3}", // ID visual generado al vuelo
+                    t.FechaHora.ToString("dd/MM/yyyy HH:mm"),
+                    t.NumeroTarjeta,
+                    t.TipoMovimiento,
+                    $"Q {t.Monto:N2}",
+                    "Completado"
+                ));
+            }
+
             ActualizarTotalTransacciones();
         }
 

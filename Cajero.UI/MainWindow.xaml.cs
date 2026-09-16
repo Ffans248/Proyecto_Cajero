@@ -85,10 +85,22 @@ namespace Cajero.UI
             {
                 if (operacion == "Retiro")
                 {
-                    // Le pasamos el token del usuario logueado a la nueva ventana
                     RetiroWindow retiroWin = new RetiroWindow(_rfidToken);
-                    retiroWin.Owner = this; // Para que se centre respecto a esta ventana
+                    retiroWin.Owner = this;
                     retiroWin.ShowDialog();
+                }
+                else if (operacion == "CambioPin")
+                {
+                    CambioPinWindow pinWin = new CambioPinWindow(_rfidToken);
+                    pinWin.Owner = this;
+                    pinWin.ShowDialog();
+                }
+                else if (operacion == "Deposito")
+                {
+                    // Abrimos la nueva ventana de Depósitos
+                    DepositoWindow depositoWin = new DepositoWindow(_rfidToken);
+                    depositoWin.Owner = this;
+                    depositoWin.ShowDialog();
                 }
                 else
                 {

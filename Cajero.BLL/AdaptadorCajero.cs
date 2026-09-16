@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cajero.BLL;
 using Cajerro.DAL.Interfaces;
 using Cajerro.DAL.Modelos;
+using Cajerro.DAL;
 
-namespace Cajerro.DAL
+namespace Cajero.BLL
 {
     /// <summary>
     /// Adaptador que implementa la interfaz IDatosCajero (requerida por Cajero.BLL)

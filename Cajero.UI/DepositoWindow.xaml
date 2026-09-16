@@ -1,0 +1,85 @@
+﻿<Window x:Class="Cajero.UI.DepositoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Depósito de Efectivo" Height="500" Width="600"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource BgPrimaryBrush}">
+
+    <Grid Margin="30">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Cabecera -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Depósito con Desglose Manual" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+            <TextBlock Text="Ingrese la cantidad de billetes que va a depositar en el cajero." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Formulario de Billetes -->
+        <Border Grid.Row="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="24">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Columna Izquierda -->
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q200:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ200" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q100:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ100" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q50:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ50" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q20:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ20" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Columna Derecha -->
+                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q10:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ10" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Billetes de Q5:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ5" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,12" Orientation="Horizontal">
+                        <TextBlock Text="Monedas de Q1:" Width="120" VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                        <TextBox x:Name="txtQ1" Width="80" Height="36" Padding="0" FontSize="16" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotal_TextChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Pie de página (Total y Botones) -->
+        <Grid Grid.Row="2" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock Text="Total a Depositar:" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBlock x:Name="lblTotal" Text="Q 0.00" FontSize="24" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Cancelar" Style="{StaticResource OutlineButton}" Height="40" Margin="0,0,10,0" Click="BtnCancelar_Click"/>
+                <Button Content="Confirmar Depósito" Style="{StaticResource PrimaryButton}" Height="40" Click="BtnConfirmar_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

@@ -89,7 +89,8 @@
                                 Style="{StaticResource OutlineButton}" 
                                 HorizontalContentAlignment="Center" 
                                 Margin="0,4" 
-                                Click="BtnAbrirVentanaAdmin_Click"/>
+                                Click="BtnAbrirVentanaAdmin_Click"
+                                Visibility="Collapsed"/>
                     </StackPanel>
                 </Grid>
             </Border>
