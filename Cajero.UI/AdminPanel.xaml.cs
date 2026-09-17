@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -12,6 +12,7 @@ namespace Cajero.UI
         private readonly ObservableCollection<TransaccionItem> _transacciones = new();
         private readonly ObservableCollection<BilleteItem> _stockBoveda = new();
         private Cajerro.DAL.Modelos.Usuario _usuarioModificacionActual;
+        private Cajero.Hardware.LectorRFID _lectorRFID;
         private readonly GestorTransacciones _gestorTransacciones;
         private readonly Cajerro.DAL.GestorArchivosCSV _dal;
 
@@ -27,6 +28,37 @@ namespace Cajero.UI
             
             ActualizarTotalTransacciones();
             CargarStockBoveda();
+        }
+
+                private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _lectorRFID = new Cajero.Hardware.LectorRFID("COM15", 9600);
+                _lectorRFID.TarjetaLeida += LectorRFID_TarjetaLeida;
+                _lectorRFID.IniciarEscucha();
+            }
+            catch (Exception)
+            {
+                // Ignorar si el puerto ya est� en uso, u otro error de hardware
+            }
+        }
+
+        private void LectorRFID_TarjetaLeida(string uid)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                txtTarjeta.Text = Cajero.Hardware.LectorRFID.ConvertirNfcA16Digitos(uid);
+            });
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_lectorRFID != null)
+            {
+                _lectorRFID.TarjetaLeida -= LectorRFID_TarjetaLeida;
+                _lectorRFID.Dispose();
+            }
         }
 
         private void BtnRegistrarUsuario_Click(object sender, RoutedEventArgs e)
@@ -314,3 +346,4 @@ namespace Cajero.UI
         }
     }
 }
+

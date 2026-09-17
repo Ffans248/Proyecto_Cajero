@@ -1,12 +1,48 @@
+﻿using System;
 using System.Windows;
+using Cajero.BLL;
+using Cajero.Hardware;
 
 namespace Cajero.UI
 {
     public partial class LoginWindow : Window
     {
+        private LectorRFID _lectorRFID;
+        private ServicioAutenticacion _servicioAutenticacion;
+
         public LoginWindow()
         {
             InitializeComponent();
+            _servicioAutenticacion = new ServicioAutenticacion();
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Inicializamos el lector en el COM15 a 9600
+                _lectorRFID = new LectorRFID("COM15", 9600);
+                
+                // Suscribimos nuestro método al evento
+                _lectorRFID.TarjetaLeida += LectorRFID_TarjetaLeida;
+                
+                // Arrancamos el hilo secundario para escuchar al ESP32
+                _lectorRFID.IniciarEscucha();
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show(ex.Message, "Error de Hardware", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LectorRFID_TarjetaLeida(string uid)
+        {
+            // Este evento viene de un hilo secundario (Cross-Thread).
+            // Usamos Dispatcher.Invoke para mandarlo al hilo principal de WPF.
+            Dispatcher.Invoke(() =>
+            {
+                txtRfidToken.Text = LectorRFID.ConvertirNfcA16Digitos(uid);
+            });
         }
 
         private void BtnLogin_Click(object sender, RoutedEventArgs e)
@@ -14,32 +50,19 @@ namespace Cajero.UI
             string rfidToken = txtRfidToken.Text.Trim();
             string pin = pwdPin.Password;
 
-            if (string.IsNullOrEmpty(rfidToken) || string.IsNullOrEmpty(pin))
+            if (string.IsNullOrEmpty(rfidToken))
             {
-                lblMensajeEstado.Text = "Por favor, ingrese el Token RFID y el PIN.";
+                lblMensajeEstado.Text = "Por favor, pase su tarjeta por el lector.";
                 lblMensajeEstado.Visibility = Visibility.Visible;
                 return;
             }
 
-            // 1. Instanciamos el Gestor de Archivos (DAL)
-            var dal = new Cajerro.DAL.GestorArchivosCSV();
+            // Llamada a la BLL (Separación de capas)
+            string rolAsignado = _servicioAutenticacion.ValidarAcceso(rfidToken, pin);
 
-            // 2. L�gica para el Administrador (Quemada por ahora para que puedas entrar)
-            if (rfidToken.ToUpper().Contains("ADM") && pin == "0000") // Ponle el PIN que quieras al admin
+            if (rolAsignado == "DENEGADO")
             {
-                MainWindow mainAdmin = new MainWindow("Administrador", rfidToken);
-                mainAdmin.Show();
-                this.Close();
-                return;
-            }
-
-            // 3. L�gica para Usuarios Reales
-            var usuario = dal.ObtenerUsuarioPorTarjeta(rfidToken);
-
-            // Verificamos si el usuario no existe o si el PIN es incorrecto
-            if (usuario == null || usuario.PIN != pin)
-            {
-                lblMensajeEstado.Text = "Credenciales incorrectas. Verifique su tarjeta y PIN.";
+                lblMensajeEstado.Text = "Credenciales incorrectas o UID no registrado.";
                 lblMensajeEstado.Visibility = Visibility.Visible;
                 pwdPin.Clear();
                 return;
@@ -47,10 +70,26 @@ namespace Cajero.UI
 
             lblMensajeEstado.Visibility = Visibility.Collapsed;
 
-            // Si todo est� correcto, lo dejamos pasar como Cliente
-            MainWindow main = new MainWindow("Cliente", rfidToken);
+            // Mostrar el MessageBox con el módulo a abrir (según la prueba física de hoy)
+            CustomMessageBox.Show($"Bienvenido. Cuenta: {rfidToken}\nAbriendo módulo de: {rolAsignado}", "Acceso Concedido", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Abriendo el Formulario Principal correcto según el Rol
+            MainWindow main = new MainWindow(rolAsignado, rfidToken);
             main.Show();
             this.Close();
         }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_lectorRFID != null)
+            {
+                _lectorRFID.TarjetaLeida -= LectorRFID_TarjetaLeida;
+                _lectorRFID.Dispose();
+            }
+        }
     }
 }
+
+
+
+
