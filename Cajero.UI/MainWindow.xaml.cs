@@ -102,9 +102,28 @@ namespace Cajero.UI
                     depositoWin.Owner = this;
                     depositoWin.ShowDialog();
                 }
+                else if (operacion == "ConsultaSaldo")
+                {
+                    try
+                    {
+                        var dal = new Cajerro.DAL.GestorArchivosCSV();
+                        var usuarioLogica = new Cajero.BLL.UsuarioLogica(dal);
+                        var (saldo, disponible) = usuarioLogica.VerSaldo(_rfidToken);
+                        
+                        ConsultaSaldoWindow saldoWin = new ConsultaSaldoWindow(saldo, disponible)
+                        {
+                            Owner = this
+                        };
+                        saldoWin.ShowDialog();
+                    }
+                    catch (Exception ex)
+                    {
+                        CustomMessageBox.Show(ex.Message, "Error al consultar saldo", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
                 else
                 {
-                    MessageBox.Show($"Operación [{operacion}] en construcción...");
+                    CustomMessageBox.Show($"Operación [{operacion}] en construcción...");
                 }
             }
         }

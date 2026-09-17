@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -81,14 +81,14 @@ namespace Cajero.UI
 
                 if (exito)
                 {
-                    MessageBox.Show("Retiro procesado correctamente. Por favor tome su efectivo.",
-                                    "Transacción Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show("Retiro procesado correctamente. Por favor tome su efectivo.", 
+                        "Transacción Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                     this.Close();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error en Transacción", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show(ex.Message, "Error en Transacción", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 

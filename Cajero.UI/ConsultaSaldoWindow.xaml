@@ -1,0 +1,35 @@
+<Window x:Class="Cajero.UI.ConsultaSaldoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Consulta de Saldo" Width="450"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    
+    <Border Background="{StaticResource BgPrimaryBrush}" CornerRadius="12" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Consulta de Saldo" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <Border Grid.Row="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="24,30">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Saldo Actual:" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="lblSaldo" Text="Q 0.00" FontSize="36" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,0,0,20"/>
+
+                    <TextBlock Text="Límite Diario Disponible:" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="lblLimite" Text="Q 0.00" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <Button Grid.Row="2" Content="Aceptar" Style="{StaticResource PrimaryButton}" Height="46" Margin="0,24,0,0" Click="BtnCerrar_Click"/>
+        </Grid>
+    </Border>
+</Window>

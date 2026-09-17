@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -63,13 +63,13 @@ namespace Cajero.UI
 
                 if (exito)
                 {
-                    MessageBox.Show("El depósito se ha realizado y acreditado a su cuenta con éxito.", "Transacción Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show("El depósito se ha realizado y acreditado a su cuenta con éxito.", "Transacción Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                     this.Close();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error en Transacción", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show(ex.Message, "Error en Transacción", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 

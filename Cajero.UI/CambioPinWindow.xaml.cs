@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using Cajero.BLL;
 using Cajerro.DAL;
@@ -32,13 +32,13 @@ namespace Cajero.UI
 
                 if (exito)
                 {
-                    MessageBox.Show("Su PIN ha sido actualizado exitosamente.", "Operación Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show("Su PIN ha sido actualizado exitosamente.", "Operación Exitosa", MessageBoxButton.OK, MessageBoxImage.Information);
                     this.Close();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error de Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show(ex.Message, "Error de Validación", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }
