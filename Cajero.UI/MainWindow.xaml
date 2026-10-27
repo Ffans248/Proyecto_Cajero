@@ -170,6 +170,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -206,6 +207,20 @@
                                     <TextBlock Text="Actualice su código de seguridad de 4 dígitos." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
                                     <Button Content="Actualizar PIN" Style="{StaticResource OutlineButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="CambioPin"/>
                                 </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,14,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="Últimas Transacciones" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Consulte los últimos 5 movimientos y tokens generados en su cuenta." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Ver Transacciones" Style="{StaticResource OutlineButton}" Height="38" Padding="18,0" Click="BtnOperacionCliente_Click" Tag="UltimasTransacciones"/>
+                                </Grid>
                             </Border>
 
                         </Grid>

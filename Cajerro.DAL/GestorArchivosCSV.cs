@@ -22,10 +22,13 @@ namespace Cajerro.DAL
         private readonly string _rutaUsuarios;
         private readonly string _rutaTransacciones;
         private readonly string _rutaBoveda;
+        private readonly string _rutaBitacora;
+        private readonly string _rutaEstadoCajero;
 
         private const string EncabezadoUsuarios = "NumeroTarjeta,PIN,Nombre,SaldoActual,LimiteDiario";
-        private const string EncabezadoTransacciones = "NumeroTarjeta,FechaHora,TipoMovimiento,Monto";
+        private const string EncabezadoTransacciones = "NumeroTarjeta,FechaHora,TipoMovimiento,Monto,Token";
         private const string EncabezadoBoveda = "Denominacion,Cantidad";
+        private const string EncabezadoBitacora = "FechaHora,TipoEvento,UsuarioOTarjeta,Detalle";
 
         // Denominaciones de billetes oficiales del proyecto: 200, 100, 50, 20, 10, 5 y 1.
         private static readonly int[] DenominacionesOficiales = [200, 100, 50, 20, 10, 5, 1];
@@ -36,7 +39,7 @@ namespace Cajerro.DAL
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="GestorArchivosCSV"/>.
-        /// Verifica la existencia de los archivos necesarios (Usuarios.csv, Transacciones.csv y Boveda.csv)
+        /// Verifica la existencia de los archivos necesarios (Usuarios.csv, Transacciones.csv, Boveda.csv y Bitacora.csv)
         /// y los crea con sus encabezados correspondientes si no existen.
         /// </summary>
         /// <param name="rutaDirectorio">Ruta de la carpeta donde residirán los archivos .csv. Si es null o vacía, usa el directorio de ejecución.</param>
@@ -49,6 +52,8 @@ namespace Cajerro.DAL
             _rutaUsuarios = Path.Combine(_rutaDirectorio, "Usuarios.csv");
             _rutaTransacciones = Path.Combine(_rutaDirectorio, "Transacciones.csv");
             _rutaBoveda = Path.Combine(_rutaDirectorio, "Boveda.csv");
+            _rutaBitacora = Path.Combine(_rutaDirectorio, "Bitacora.csv");
+            _rutaEstadoCajero = Path.Combine(_rutaDirectorio, "EstadoCajero.txt");
 
             InicializarArchivos();
         }
@@ -71,6 +76,8 @@ namespace Cajerro.DAL
                     using (StreamWriter sw = new StreamWriter(_rutaUsuarios, append: false, Encoding.UTF8))
                     {
                         sw.WriteLine(EncabezadoUsuarios);
+                        sw.WriteLine("9999999999999999,1234,Administrador Gerencia,10000.00,5000.00");
+                        sw.WriteLine("1234567890123456,1234,Juan Perez,5000.00,2000.00");
                     }
                     Debug.WriteLine($"[DAL INFO] Archivo creado: {_rutaUsuarios}");
                 }
@@ -98,6 +105,16 @@ namespace Cajerro.DAL
                         }
                     }
                     Debug.WriteLine($"[DAL INFO] Archivo creado: {_rutaBoveda}");
+                }
+
+                // 4. Inicialización de Bitacora.csv
+                if (!File.Exists(_rutaBitacora))
+                {
+                    using (StreamWriter sw = new StreamWriter(_rutaBitacora, append: false, Encoding.UTF8))
+                    {
+                        sw.WriteLine(EncabezadoBitacora);
+                    }
+                    Debug.WriteLine($"[DAL INFO] Archivo creado: {_rutaBitacora}");
                 }
             }
             catch (IOException ex)
@@ -447,14 +464,15 @@ namespace Cajerro.DAL
 
             try
             {
-                // Formato ISO estándar para fecha y hora, y punto decimal invariable para el monto
+                // Formato ISO estándar para fecha y hora, punto decimal invariable y token de autorización
                 string linea = string.Format(
                     CultureInfo.InvariantCulture,
-                    "{0},{1:yyyy-MM-dd HH:mm:ss},{2},{3:F2}",
+                    "{0},{1:yyyy-MM-dd HH:mm:ss},{2},{3:F2},{4}",
                     t.NumeroTarjeta.Trim(),
                     t.FechaHora,
                     t.TipoMovimiento.Trim(),
-                    t.Monto
+                    t.Monto,
+                    (t.Token ?? "").Trim()
                 );
 
                 using (StreamWriter sw = new StreamWriter(_rutaTransacciones, append: true, Encoding.UTF8))
@@ -541,12 +559,15 @@ namespace Cajerro.DAL
                             continue;
                         }
 
+                        string token = partes.Length >= 5 ? partes[4].Trim() : "";
+
                         historial.Add(new Transaccion
                         {
                             NumeroTarjeta = tarjetaReg,
                             FechaHora = fechaHora,
                             TipoMovimiento = partes[2].Trim(),
-                            Monto = monto
+                            Monto = monto,
+                            Token = token
                         });
                     }
                 }
@@ -605,12 +626,15 @@ namespace Cajerro.DAL
 
                         if (!decimal.TryParse(partes[3].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal monto)) continue;
 
+                        string token = partes.Length >= 5 ? partes[4].Trim() : "";
+
                         transacciones.Add(new Transaccion
                         {
                             NumeroTarjeta = partes[0].Trim(),
                             FechaHora = fechaHora,
                             TipoMovimiento = partes[2].Trim(),
-                            Monto = monto
+                            Monto = monto,
+                            Token = token
                         });
                     }
                 }
@@ -749,6 +773,388 @@ namespace Cajerro.DAL
                 RegistrarError("GuardarInventarioBilletes", "Error inesperado al guardar el inventario de la bóveda.", ex);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Verifica si el cajero ha sido inicializado en el día actual con su carga inicial de efectivo.
+        /// </summary>
+        public bool EstaCajeroInicializado()
+        {
+            try
+            {
+                if (File.Exists(_rutaEstadoCajero))
+                {
+                    string contenido = File.ReadAllText(_rutaEstadoCajero).Trim();
+                    string[] partes = contenido.Split(';');
+                    if (partes.Length >= 2 && partes[0].Equals(DateTime.Today.ToString("yyyy-MM-dd"), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return partes[1].Equals("INICIALIZADO", StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+
+                // Verificación secundaria en la bitácora para el día de hoy
+                var registros = ObtenerBitacora();
+                var ultimoEventoApertura = registros
+                    .Where(r => r.FechaHora.Date == DateTime.Today && 
+                                (r.TipoEvento.Equals("Inicialización Cajero", StringComparison.OrdinalIgnoreCase) ||
+                                 r.TipoEvento.Equals("Reinicio de Apertura", StringComparison.OrdinalIgnoreCase)))
+                    .OrderByDescending(r => r.FechaHora)
+                    .FirstOrDefault();
+
+                return ultimoEventoApertura != null && 
+                       ultimoEventoApertura.TipoEvento.Equals("Inicialización Cajero", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Realiza la inicialización reglamentaria del cajero (monto máximo Q10,000.00 con todas las denominaciones).
+        /// Solo puede realizarse una única vez al día según la normativa del proyecto.
+        /// </summary>
+        public bool InicializarCajero(List<Billete> billetesIniciales)
+        {
+            // Restricción: Solo una vez al día
+            if (EstaCajeroInicializado())
+            {
+                throw new InvalidOperationException("El cajero ya ha sido inicializado para el día de hoy. Por normativa, la inicialización de apertura solo puede realizarse una única vez al día. Para ingresar más efectivo utilice 'Agregar Efectivo'.");
+            }
+
+            if (billetesIniciales == null || billetesIniciales.Count == 0)
+            {
+                throw new ArgumentException("Debe proporcionar la cantidad de billetes para cada denominación.");
+            }
+
+            // Asegurar que todas las 7 denominaciones oficiales estén representadas
+            var billetesCompletos = new List<Billete>();
+            foreach (int denom in DenominacionesOficiales.OrderByDescending(d => d))
+            {
+                var existente = billetesIniciales.FirstOrDefault(b => b.Denominacion == denom);
+                int cantidad = existente != null ? Math.Max(0, existente.Cantidad) : 0;
+                billetesCompletos.Add(new Billete(denom, cantidad));
+            }
+
+            decimal total = billetesCompletos.Sum(b => b.Subtotal);
+
+            // Restricción: No puede ser más de Q. 10,000.00
+            if (total > 10000m)
+            {
+                throw new InvalidOperationException($"El monto total de inicialización no puede ser mayor a Q10,000.00 según la normativa del proyecto (Monto ingresado: Q{total:N2}).");
+            }
+
+            if (total <= 0m)
+            {
+                throw new InvalidOperationException("El monto de inicialización debe ser mayor a Q0.00.");
+            }
+
+            bool guardado = GuardarInventarioBilletes(billetesCompletos);
+            if (!guardado)
+            {
+                throw new IOException("Error al persistir la carga inicial en Boveda.csv.");
+            }
+
+            // Guardar estado de inicialización con la fecha de hoy
+            try
+            {
+                File.WriteAllText(_rutaEstadoCajero, $"{DateTime.Today:yyyy-MM-dd};INICIALIZADO;{total:F2}");
+            }
+            catch (Exception ex)
+            {
+                RegistrarAdvertencia("InicializarCajero", $"No se pudo escribir EstadoCajero.txt: {ex.Message}");
+            }
+
+            // Registrar en bitácora administrativa
+            string detalle = $"Carga inicial de apertura exitosa por Q{total:N2}. Desglose: " +
+                             string.Join(", ", billetesCompletos.Where(b => b.Cantidad > 0).Select(b => $"{b.Cantidad} de Q{b.Denominacion}"));
+
+            RegistrarEnBitacora("Inicialización Cajero", "ADMIN", detalle);
+            return true;
+        }
+
+        /// <summary>
+        /// Reinicia el estado de inicialización del día (útil para pruebas y calibración administrativa).
+        /// </summary>
+        public bool ReiniciarInicializacionDia()
+        {
+            try
+            {
+                File.WriteAllText(_rutaEstadoCajero, $"{DateTime.Today:yyyy-MM-dd};PENDIENTE;0.00");
+                RegistrarEnBitacora("Reinicio de Apertura", "ADMIN", "Se reinició el estado de inicialización diaria del cajero.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                RegistrarError("ReiniciarInicializacionDia", "Error al reiniciar estado del cajero.", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Agrega un nuevo lote de efectivo a la bóveda (límite máximo acumulado Q30,000.00). Solo permitido tras ser inicializado.
+        /// </summary>
+        public bool AgregarEfectivoBoveda(List<Billete> billetesRecarga)
+        {
+            if (!EstaCajeroInicializado())
+            {
+                throw new InvalidOperationException("El cajero debe ser inicializado con su carga del día antes de poder agregar lotes de efectivo.");
+            }
+
+            if (billetesRecarga == null || billetesRecarga.Count == 0)
+            {
+                throw new ArgumentException("Debe ingresar los billetes a recargar.");
+            }
+
+            decimal totalRecarga = billetesRecarga.Sum(b => b.Subtotal);
+            if (totalRecarga <= 0m)
+            {
+                throw new InvalidOperationException("Debe ingresar una cantidad mayor a cero billetes para recargar.");
+            }
+
+            if (totalRecarga > 30000m)
+            {
+                throw new InvalidOperationException($"El nuevo lote a recargar no podrá pasar los Q30,000.00 (Monto ingresado: Q{totalRecarga:N2}).");
+            }
+
+            var inventarioActual = ObtenerInventarioBilletes();
+            decimal totalActual = inventarioActual.Sum(b => b.Subtotal);
+
+            if (totalActual + totalRecarga > 30000m)
+            {
+                throw new InvalidOperationException($"La recarga de Q{totalRecarga:N2} excede el límite máximo permitido de Q30,000.00 en la bóveda (Actual: Q{totalActual:N2}, Resultante: Q{(totalActual + totalRecarga):N2}).");
+            }
+
+            // Sumar cantidades de billetes por cada denominación
+            foreach (var recarga in billetesRecarga)
+            {
+                var boveda = inventarioActual.FirstOrDefault(b => b.Denominacion == recarga.Denominacion);
+                if (boveda != null)
+                {
+                    boveda.Cantidad += Math.Max(0, recarga.Cantidad);
+                }
+                else if (DenominacionesOficiales.Contains(recarga.Denominacion))
+                {
+                    inventarioActual.Add(new Billete(recarga.Denominacion, Math.Max(0, recarga.Cantidad)));
+                }
+            }
+
+            bool guardado = GuardarInventarioBilletes(inventarioActual);
+            if (!guardado)
+            {
+                throw new IOException("Error al actualizar Boveda.csv.");
+            }
+
+            decimal nuevoTotal = inventarioActual.Sum(b => b.Subtotal);
+            string detalle = $"Recarga de efectivo aprobada por Q{totalRecarga:N2}. Total disponible en bóveda: Q{nuevoTotal:N2}. Lote: " +
+                             string.Join(", ", billetesRecarga.Where(b => b.Cantidad > 0).Select(b => $"{b.Cantidad} de Q{b.Denominacion}"));
+
+            RegistrarEnBitacora("Recarga de Efectivo", "ADMIN", detalle);
+            return true;
+        }
+
+        #endregion
+
+        #region Bitácora Administrativa y Control
+
+        /// <summary>
+        /// Registra un evento de auditoría en Bitacora.csv.
+        /// </summary>
+        public bool RegistrarEnBitacora(string tipoEvento, string usuarioOTarjeta, string detalle)
+        {
+            try
+            {
+                string linea = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0:yyyy-MM-dd HH:mm:ss},{1},{2},{3}",
+                    DateTime.Now,
+                    (tipoEvento ?? string.Empty).Trim().Replace(',', ';'),
+                    (usuarioOTarjeta ?? string.Empty).Trim().Replace(',', ';'),
+                    (detalle ?? string.Empty).Trim().Replace(',', ';')
+                );
+
+                using (StreamWriter sw = new StreamWriter(_rutaBitacora, append: true, Encoding.UTF8))
+                {
+                    sw.WriteLine(linea);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                RegistrarError("RegistrarEnBitacora", "Error al escribir en Bitacora.csv.", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Obtiene todos los registros almacenados en Bitacora.csv ordenados de forma descendente.
+        /// </summary>
+        public List<RegistroBitacora> ObtenerBitacora()
+        {
+            var registros = new List<RegistroBitacora>();
+            if (!File.Exists(_rutaBitacora)) return registros;
+
+            try
+            {
+                using (StreamReader sr = new StreamReader(_rutaBitacora, Encoding.UTF8))
+                {
+                    string? encabezado = sr.ReadLine();
+                    if (encabezado == null) return registros;
+
+                    string? linea;
+                    while ((linea = sr.ReadLine()) != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(linea)) continue;
+
+                        string[] partes = linea.Split(',');
+                        if (partes.Length < 4) continue;
+
+                        if (!DateTime.TryParse(partes[0].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fechaHora))
+                        {
+                            if (!DateTime.TryParse(partes[0].Trim(), out fechaHora)) continue;
+                        }
+
+                        registros.Add(new RegistroBitacora
+                        {
+                            FechaHora = fechaHora,
+                            TipoEvento = partes[1].Trim(),
+                            UsuarioOTarjeta = partes[2].Trim(),
+                            Detalle = partes[3].Trim()
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RegistrarError("ObtenerBitacora", "Error al leer Bitacora.csv.", ex);
+            }
+
+            return registros.OrderByDescending(r => r.FechaHora).ToList();
+        }
+
+        /// <summary>
+        /// Modifica el número de tarjeta para un usuario registrando el cambio en la bitácora
+        /// para mantener el control de límite diario acumulado.
+        /// </summary>
+        public bool ModificarNumeroTarjeta(string tarjetaActual, string nuevaTarjeta)
+        {
+            if (string.IsNullOrWhiteSpace(tarjetaActual) || string.IsNullOrWhiteSpace(nuevaTarjeta))
+            {
+                throw new ArgumentException("Los números de tarjeta no pueden estar vacíos.");
+            }
+
+            tarjetaActual = tarjetaActual.Trim();
+            nuevaTarjeta = nuevaTarjeta.Trim();
+
+            if (nuevaTarjeta.Length != 16 || !nuevaTarjeta.All(char.IsDigit))
+            {
+                throw new ArgumentException("El nuevo número de tarjeta debe tener exactamente 16 dígitos numéricos.");
+            }
+
+            if (tarjetaActual.Equals(nuevaTarjeta, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException("El nuevo número de tarjeta no puede ser igual al actual.");
+            }
+
+            var usuarios = ObtenerTodosLosUsuarios();
+            var usuario = usuarios.FirstOrDefault(u => u.NumeroTarjeta.Equals(tarjetaActual, StringComparison.OrdinalIgnoreCase));
+            if (usuario == null)
+            {
+                throw new InvalidOperationException($"No se encontró ningún usuario con la tarjeta {tarjetaActual}.");
+            }
+
+            if (usuarios.Any(u => u.NumeroTarjeta.Equals(nuevaTarjeta, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException($"La tarjeta {nuevaTarjeta} ya está registrada en el sistema.");
+            }
+
+            usuario.NumeroTarjeta = nuevaTarjeta;
+            bool exito = GuardarTodosLosUsuarios(usuarios);
+
+            if (exito)
+            {
+                RegistrarEnBitacora("Cambio de Tarjeta", nuevaTarjeta, $"Tarjeta actualizada. Tarjeta previa: {tarjetaActual}. Titular: {usuario.Nombre}.");
+            }
+
+            return exito;
+        }
+
+        /// <summary>
+        /// Retorna la lista de todas las tarjetas (actual y anteriores) asociadas a un usuario según los registros de la bitácora.
+        /// </summary>
+        public List<string> ObtenerTarjetasVinculadas(string tarjeta)
+        {
+            var vinculadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(tarjeta)) return vinculadas.ToList();
+
+            vinculadas.Add(tarjeta.Trim());
+
+            try
+            {
+                var bitacora = ObtenerBitacora();
+                bool cambio;
+
+                // Propagación transitiva por si hubo múltiples cambios de tarjeta en cadena
+                do
+                {
+                    cambio = false;
+                    foreach (var reg in bitacora.Where(r => r.TipoEvento.Equals("Cambio de Tarjeta", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        string tarjReg = reg.UsuarioOTarjeta.Trim();
+                        // El detalle contiene: "Tarjeta previa: {tarjetaVieja}"
+                        int idx = reg.Detalle.IndexOf("Tarjeta previa: ", StringComparison.OrdinalIgnoreCase);
+                        if (idx >= 0)
+                        {
+                            string resto = reg.Detalle.Substring(idx + 16);
+                            int puntoIdx = resto.IndexOf('.');
+                            string tarjPrevia = (puntoIdx >= 0 ? resto.Substring(0, puntoIdx) : resto).Trim();
+
+                            if (vinculadas.Contains(tarjReg) && !vinculadas.Contains(tarjPrevia))
+                            {
+                                vinculadas.Add(tarjPrevia);
+                                cambio = true;
+                            }
+                            else if (vinculadas.Contains(tarjPrevia) && !vinculadas.Contains(tarjReg))
+                            {
+                                vinculadas.Add(tarjReg);
+                                cambio = true;
+                            }
+                        }
+                    }
+                } while (cambio);
+            }
+            catch (Exception ex)
+            {
+                RegistrarAdvertencia("ObtenerTarjetasVinculadas", $"Error al rastrear tarjetas vinculadas: {ex.Message}");
+            }
+
+            return vinculadas.ToList();
+        }
+
+        /// <summary>
+        /// Retorna la fecha y hora del último acceso/login exitoso para una tarjeta o sus tarjetas vinculadas.
+        /// </summary>
+        public DateTime? ObtenerUltimoAcceso(string tarjeta)
+        {
+            var tarjetas = ObtenerTarjetasVinculadas(tarjeta);
+            var bitacora = ObtenerBitacora();
+
+            var acceso = bitacora.FirstOrDefault(r => (r.TipoEvento.Equals("Inicio de Sesión", StringComparison.OrdinalIgnoreCase) ||
+                                                      r.TipoEvento.Equals("Acceso Cajero", StringComparison.OrdinalIgnoreCase)) &&
+                                                     tarjetas.Contains(r.UsuarioOTarjeta.Trim()));
+
+            return acceso?.FechaHora;
+        }
+
+        /// <summary>
+        /// Retorna el último registro de acceso de cualquier usuario al cajero.
+        /// </summary>
+        public RegistroBitacora? ObtenerUltimoAccesoGeneral()
+        {
+            var bitacora = ObtenerBitacora();
+            return bitacora.FirstOrDefault(r => r.TipoEvento.Equals("Inicio de Sesión", StringComparison.OrdinalIgnoreCase) ||
+                                                r.TipoEvento.Equals("Acceso Cajero", StringComparison.OrdinalIgnoreCase));
         }
 
         #endregion

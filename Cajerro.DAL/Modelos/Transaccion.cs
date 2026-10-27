@@ -28,6 +28,11 @@ namespace Cajerro.DAL.Modelos
         public decimal Monto { get; set; }
 
         /// <summary>
+        /// Token de seguridad de 4 dígitos generado y utilizado para validar la transacción.
+        /// </summary>
+        public string Token { get; set; } = string.Empty;
+
+        /// <summary>
         /// Constructor vacío para inicialización por propiedades.
         /// </summary>
         public Transaccion()
@@ -41,17 +46,19 @@ namespace Cajerro.DAL.Modelos
         /// <param name="fechaHora">Marca temporal de la transacción.</param>
         /// <param name="tipoMovimiento">Tipo de operación (Retiro, Depósito, etc.).</param>
         /// <param name="monto">Monto de la transacción.</param>
-        public Transaccion(string numeroTarjeta, DateTime fechaHora, string tipoMovimiento, decimal monto)
+        /// <param name="token">Token de autorización de la transacción.</param>
+        public Transaccion(string numeroTarjeta, DateTime fechaHora, string tipoMovimiento, decimal monto, string token = "")
         {
             NumeroTarjeta = numeroTarjeta;
             FechaHora = fechaHora;
             TipoMovimiento = tipoMovimiento;
             Monto = monto;
+            Token = token;
         }
 
         public override string ToString()
         {
-            return $"[{FechaHora:yyyy-MM-dd HH:mm:ss}] {TipoMovimiento} - {NumeroTarjeta} - Monto: {Monto:C2}";
+            return $"[{FechaHora:yyyy-MM-dd HH:mm:ss}] {TipoMovimiento} - {NumeroTarjeta} - Monto: {Monto:C2} (Token: {Token})";
         }
     }
 }

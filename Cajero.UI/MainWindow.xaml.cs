@@ -121,6 +121,14 @@ namespace Cajero.UI
                         CustomMessageBox.Show(ex.Message, "Error al consultar saldo", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
+                else if (operacion == "UltimasTransacciones")
+                {
+                    HistorialTransaccionesWindow histWin = new HistorialTransaccionesWindow(_rfidToken)
+                    {
+                        Owner = this
+                    };
+                    histWin.ShowDialog();
+                }
                 else
                 {
                     CustomMessageBox.Show($"Operación [{operacion}] en construcción...");

@@ -87,6 +87,60 @@ namespace Cajerro.DAL.Interfaces
         /// <returns>True si se guardó correctamente; de lo contrario, False.</returns>
         bool GuardarInventarioBilletes(List<Billete> inventarioActualizado);
 
+        /// <summary>
+        /// Verifica si el cajero ha sido inicializado en el día actual con su carga inicial de efectivo.
+        /// </summary>
+        bool EstaCajeroInicializado();
+
+        /// <summary>
+        /// Realiza la inicialización reglamentaria del cajero (monto máximo Q10,000.00 con todas las denominaciones).
+        /// </summary>
+        bool InicializarCajero(List<Billete> billetesIniciales);
+
+        /// <summary>
+        /// Agrega un nuevo lote de efectivo a la bóveda (límite máximo acumulado Q30,000.00). Solo permitido tras ser inicializado.
+        /// </summary>
+        bool AgregarEfectivoBoveda(List<Billete> billetesRecarga);
+
+        /// <summary>
+        /// Reinicia el estado de inicialización del día (útil para pruebas y calibración administrativa).
+        /// </summary>
+        bool ReiniciarInicializacionDia();
+
+        #endregion
+
+        #region Bitácora Administrativa y Control
+
+        /// <summary>
+        /// Registra un evento en el archivo de texto de auditoría/bitácora (Bitacora.csv).
+        /// </summary>
+        bool RegistrarEnBitacora(string tipoEvento, string usuarioOTarjeta, string detalle);
+
+        /// <summary>
+        /// Obtiene todos los registros históricos de la bitácora administrativa.
+        /// </summary>
+        List<RegistroBitacora> ObtenerBitacora();
+
+        /// <summary>
+        /// Modifica el número de tarjeta de un usuario conservando el vínculo histórico para el control del límite diario.
+        /// </summary>
+        bool ModificarNumeroTarjeta(string tarjetaActual, string nuevaTarjeta);
+
+        /// <summary>
+        /// Retorna la lista de números de tarjeta actuales y anteriores que han pertenecido a un mismo usuario.
+        /// </summary>
+        List<string> ObtenerTarjetasVinculadas(string tarjeta);
+
+        /// <summary>
+        /// Obtiene la marca de tiempo del último acceso/login registrado para un usuario específico.
+        /// </summary>
+        DateTime? ObtenerUltimoAcceso(string tarjeta);
+
+        /// <summary>
+        /// Obtiene el último registro de acceso de cualquier usuario al cajero.
+        /// </summary>
+        RegistroBitacora? ObtenerUltimoAccesoGeneral();
+
         #endregion
     }
 }

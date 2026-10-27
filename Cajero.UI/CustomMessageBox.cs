@@ -13,7 +13,7 @@ namespace Cajero.UI
             if (Application.Current.MainWindow != null && Application.Current.MainWindow.IsLoaded)
             {
                 // Buscar la ventana activa actual
-                Window activeWindow = null;
+                Window? activeWindow = null;
                 foreach (Window win in Application.Current.Windows)
                 {
                     if (win.IsActive)

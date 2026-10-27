@@ -1,0 +1,91 @@
+﻿<Window x:Class="Cajero.UI.HistorialTransaccionesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Historial de Transacciones" 
+        Height="500" Width="750"
+        WindowStartupLocation="CenterScreen" 
+        Background="{StaticResource BgPrimaryBrush}">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Cabecera -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Últimas Transacciones" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+            <TextBlock x:Name="lblSubtitulo" Text="Resumen de los últimos 5 movimientos registrados en su cuenta." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Tabla de Transacciones -->
+        <Border Grid.Row="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
+            <DataGrid x:Name="dgHistorial"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      SelectionMode="Single"
+                      GridLinesVisibility="None"
+                      HeadersVisibility="Column"
+                      Background="{StaticResource BgPrimaryBrush}"
+                      RowBackground="{StaticResource BgCardBrush}"
+                      AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
+                      Foreground="{StaticResource TextPrimaryBrush}"
+                      BorderBrush="{StaticResource BorderBrush}"
+                      BorderThickness="1"
+                      FontSize="13"
+                      RowHeight="38">
+
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#0F172A"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Padding" Value="14,10"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1.5"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Padding" Value="14,6"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="DataGridCell">
+                                    <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                                        <ContentPresenter VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#1E3A8A"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaHora}" Width="160"/>
+                    <DataGridTextColumn Header="Operación" Binding="{Binding TipoMovimiento}" Width="130"/>
+                    <DataGridTextColumn Header="Monto" Binding="{Binding MontoFormateado}" Width="120"/>
+                    <DataGridTextColumn Header="Token Autorización" Binding="{Binding Token}" Width="140"/>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="*"/>
+                </DataGrid.Columns>
+
+            </DataGrid>
+        </Border>
+
+        <!-- Botón de Cerrar -->
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <TextBlock x:Name="lblTotalMovimientos" Text="Total de movimientos mostrados: 0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+            <Button Content="Aceptar" Style="{StaticResource PrimaryButton}" Width="120" Height="38" HorizontalAlignment="Right" Click="BtnCerrar_Click"/>
+        </Grid>
+    </Grid>
+</Window>

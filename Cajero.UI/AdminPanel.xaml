@@ -5,9 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Cajero.UI"
         mc:Ignorable="d"
-        Title="NEXUSBANK - Panel de Administración" 
-        Height="720" Width="1140"
-        MinHeight="600" MinWidth="880"
+        Title="NEXUSBANK - Panel de Administración Central" 
+        Height="780" Width="1200"
+        MinHeight="650" MinWidth="980"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgPrimaryBrush}">
 
@@ -17,7 +17,8 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,16" Margin="0,0,0,20">
+        <!-- Barra Superior de Navegación del Administrador -->
+        <Border Grid.Row="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,16" Margin="0,0,0,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -25,17 +26,23 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="NEXUSBANK - Panel de Administración" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Gestion de usuarios y auditoría de transacciones." FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="90" Height="28" Background="{StaticResource AccentPrimaryBrush}" CornerRadius="6" Margin="0,0,10,0">
+                            <TextBlock Text="NEXUSBANK" Foreground="#FFFFFF" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Consola de Administración y Control Bancario" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="Gestión de usuarios, control de bóveda, auditoría de bitácora y métricas analíticas en tiempo real." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Cerrar Panel" Style="{StaticResource OutlineButton}" Padding="14,8" Click="BtnCerrar_Click"/>
+                    <Button Content="Cerrar Panel" Style="{StaticResource OutlineButton}" Padding="16,8" Click="BtnCerrar_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="0,10,0,0">
+        <!-- Pestañas Principales -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>
@@ -44,7 +51,7 @@
                     <Setter Property="Margin" Value="0,0,8,0"/>
                     <Setter Property="BorderThickness" Value="1"/>
                     <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="FontSize" Value="13"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
                     <Setter Property="Template">
                         <Setter.Value>
@@ -72,40 +79,212 @@
                 </Style>
             </TabControl.Resources>
 
-            <!-- Pestaña 1: Gestión de Usuarios -->
-            <TabItem Header="Gestión de Usuarios">
+            <!-- ========================================================= -->
+            <!-- PESTAÑA 1: DASHBOARD Y MÉTRICAS                           -->
+            <!-- ========================================================= -->
+            <TabItem Header="Dashboard y Métricas">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,16,0,0">
+                    <StackPanel Orientation="Vertical">
+                        
+                        <!-- Barra de Actualización de Métricas -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Métricas Operativas y Control Diario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Indicadores estadísticos de actividad y disponibilidad del cajero automático." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Actualizar Métricas" Style="{StaticResource OutlineButton}" Padding="14,6" FontSize="12" Click="BtnRefrescarDashboard_Click"/>
+                        </Grid>
+
+                        <!-- Fila 1 de Tarjetas KPI -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- KPI 1: Total Retirado Hoy -->
+                            <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="TOTAL RETIRADO HOY" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiTotalRetiradoHoy" Text="Q 0.00" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AccentDangerBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock Text="Retiros acumulados de hoy" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- KPI 2: Promedio Monto Depositado -->
+                            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="PROMEDIO DE DEPÓSITOS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiPromedioDepositos" Text="Q 0.00" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock Text="Por todos los usuarios" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- KPI 3: Promedio Monto de Retiros -->
+                            <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="PROMEDIO DE RETIROS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiPromedioRetiros" Text="Q 0.00" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock Text="Ticket promedio de retiro" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- KPI 4: Efectivo Total en Bóveda -->
+                            <Border Grid.Column="3" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="EFECTIVO EN BÓVEDA" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiTotalBoveda" Text="Q 0.00" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock x:Name="lblKpiEstadoBoveda" Text="Estado: No inicializado" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Fila 2 de Tarjetas KPI -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- KPI 5: Total Depositado Hoy -->
+                            <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="TOTAL DEPOSITADO HOY" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiTotalDepositadoHoy" Text="Q 0.00" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock Text="Acreditado en cuentas" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- KPI 6: Total Transacciones -->
+                            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="TRANSACCIONES REALIZADAS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiTotalTransacciones" Text="0" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock x:Name="lblKpiTransaccionesHoy" Text="0 movimientos hoy" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- KPI 7: Usuarios Registrados / Activos -->
+                            <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="USUARIOS ACTIVOS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiUsuariosActivos" Text="0" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock Text="Clientes habilitados" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- KPI 8: Cambios de PIN Realizados -->
+                            <Border Grid.Column="3" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="CAMBIOS DE PIN" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock x:Name="lblKpiCambiosPin" Text="0" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,6,0,2"/>
+                                    <TextBlock Text="Usuarios que cambiaron PIN" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Paneles Inferiores: Último Acceso y Usuarios con Cambio de PIN -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Panel Último Acceso -->
+                            <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="Último Acceso al Cajero" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Información del último usuario y fecha completa de su ingreso." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,14"/>
+
+                                    <Border Background="{StaticResource BgCardLighterBrush}" CornerRadius="8" Padding="14">
+                                        <StackPanel>
+                                            <TextBlock Text="Usuario / Tarjeta:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblUltimoUsuarioAcceso" Text="Ninguno registrado" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,8"/>
+
+                                            <TextBlock Text="Fecha y Hora Completa:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblUltimaFechaAcceso" Text="Sin registros" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Panel Usuarios que han hecho cambio de PIN -->
+                            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="8,0,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0">
+                                        <TextBlock Text="Récord de Usuarios con Cambio de PIN" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Usuarios que han modificado su PIN de seguridad." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,10"/>
+                                    </StackPanel>
+                                    <ListBox Grid.Row="1" x:Name="lbUsuariosCambioPin" Background="Transparent" BorderThickness="0" MaxHeight="140" Foreground="{StaticResource TextPrimaryBrush}" FontSize="13">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2"/>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ========================================================= -->
+            <!-- PESTAÑA 2: GESTIÓN Y CONSULTA DE USUARIOS                 -->
+            <!-- ========================================================= -->
+            <TabItem Header="Gestión y Consulta de Usuarios">
                 <Grid Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Registrar Nuevo Usuario -->
-                    <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="24">
+                    <!-- Columna 1: Registrar Nuevo Usuario -->
+                    <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="Registrar Nuevo Usuario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Ingrese los datos requeridos para dar de alta al cliente." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,20" TextWrapping="Wrap"/>
+                                <TextBlock Text="Registrar Usuario" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Alta de cliente (Tarjeta 16 dígitos, PIN 4 dígitos)." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,16" TextWrapping="Wrap"/>
 
-                                <StackPanel Margin="0,0,0,16">
-                                    <TextBlock Text="Número de Tarjeta (16 dígitos)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                    <TextBox x:Name="txtTarjeta" Height="42" FontSize="14" MaxLength="16"/>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Número de Tarjeta (16 dígitos)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="txtTarjeta" Height="38" FontSize="14" MaxLength="16"/>
                                 </StackPanel>
                                 
-                                <StackPanel Margin="0,0,0,16">
-                                    <TextBlock Text="Nombre Completo" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                    <TextBox x:Name="txtNombre" Height="42" FontSize="14"/>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Nombre Completo" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="txtNombre" Height="38" FontSize="14"/>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="PIN de Seguridad (4 dígitos)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <PasswordBox x:Name="pwdNuevoPin" MaxLength="4" Height="38" FontSize="15"/>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Saldo Inicial (Q)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="txtSaldoInicial" Height="38" FontSize="14" Text="0.00"/>
                                 </StackPanel>
 
                                 <StackPanel Margin="0,0,0,16">
-                                    <TextBlock Text="PIN de Seguridad (4 dígitos)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                    <PasswordBox x:Name="pwdNuevoPin" MaxLength="6" Height="42" FontSize="15"/>
-                                </StackPanel>
-
-                                <StackPanel Margin="0,0,0,20">
-                                    <TextBlock Text="Límite Diario de Retiro" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                    <TextBox x:Name="txtLimite" Height="42" FontSize="14"/>
+                                    <TextBlock Text="Límite Diario de Retiro (Q)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="txtLimite" Height="38" FontSize="14"/>
                                 </StackPanel>
 
                                 <TextBlock x:Name="lblEstadoRegistro" 
@@ -114,55 +293,65 @@
                                            FontWeight="SemiBold" 
                                            Foreground="{StaticResource AccentSuccessBrush}" 
                                            TextWrapping="Wrap" 
-                                           Margin="0,0,0,16" 
+                                           Margin="0,0,0,12" 
                                            Visibility="Collapsed"/>
 
                                 <Button x:Name="btnRegistrarUsuario" 
                                         Content="Registrar Usuario" 
                                         Style="{StaticResource SuccessButton}" 
-                                        Height="44" 
+                                        Height="40" 
                                         Click="BtnRegistrarUsuario_Click" 
-                                        Margin="0,0,0,10"/>
+                                        Margin="0,0,0,8"/>
 
                                 <Button x:Name="btnLimpiarCampos" 
-                                        Content="Limpiar Campos" 
+                                        Content="Limpiar Formulario" 
                                         Style="{StaticResource OutlineButton}" 
-                                        Height="46" 
+                                        Height="38" 
                                         Click="BtnLimpiarCampos_Click"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
 
-                    <!-- Modificar Usuario -->
-                    <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="24">
+                    <!-- Columna 2: Modificar Usuario (PIN, Límite, Tarjeta) -->
+                    <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="Modificar Usuario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Busque un usuario por tarjeta y modifique sus datos." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,20" TextWrapping="Wrap"/>
+                                <TextBlock Text="Modificar Usuario" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Modifique PIN, límite diario o reasigne número de tarjeta." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,16" TextWrapping="Wrap"/>
 
-                                <StackPanel Margin="0,0,0,16">
-                                    <TextBlock Text="Buscar Tarjeta" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Buscar Tarjeta Actual" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" x:Name="txtBuscarTarjetaMod" Height="42" FontSize="14" MaxLength="16" Margin="0,0,8,0"/>
-                                        <Button Grid.Column="1" Content="Buscar" Style="{StaticResource OutlineButton}" Padding="16,0" Height="42" Click="BtnBuscarUsuarioMod_Click"/>
+                                        <TextBox Grid.Column="0" x:Name="txtBuscarTarjetaMod" Height="38" FontSize="14" MaxLength="16" Margin="0,0,6,0"/>
+                                        <Button Grid.Column="1" Content="Buscar" Style="{StaticResource OutlineButton}" Padding="12,0" Height="38" Click="BtnBuscarUsuarioMod_Click"/>
                                     </Grid>
                                 </StackPanel>
 
                                 <StackPanel x:Name="panelModificarUsuario" Visibility="Collapsed">
-                                    <TextBlock x:Name="lblNombreUsuarioMod" Text="Nombre: " FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
+                                    <Border Background="{StaticResource BgCardLighterBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,0,12">
+                                        <TextBlock x:Name="lblNombreUsuarioMod" Text="Nombre: " FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    </Border>
 
-                                    <StackPanel Margin="0,0,0,16">
-                                        <TextBlock Text="Nuevo PIN (Opcional, 4 dígitos)" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                        <PasswordBox x:Name="pwdPinMod" MaxLength="6" Height="42" FontSize="15"/>
+                                    <!-- Modificar PIN -->
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="Nuevo PIN (Opcional, 4 dígitos)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <PasswordBox x:Name="pwdPinMod" MaxLength="4" Height="38" FontSize="15"/>
                                     </StackPanel>
 
-                                    <StackPanel Margin="0,0,0,20">
-                                        <TextBlock Text="Nuevo Límite Diario" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                                        <TextBox x:Name="txtLimiteMod" Height="42" FontSize="14"/>
+                                    <!-- Modificar Límite -->
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="Nuevo Límite Diario (Q)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="txtLimiteMod" Height="38" FontSize="14"/>
+                                    </StackPanel>
+
+                                    <!-- Modificar Tarjeta (Récord para límite diario) -->
+                                    <StackPanel Margin="0,0,0,14">
+                                        <TextBlock Text="Nuevo No. de Tarjeta (Opcional, 16 dígitos)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="txtNuevaTarjetaMod" Height="38" FontSize="14" MaxLength="16"/>
                                     </StackPanel>
 
                                     <TextBlock x:Name="lblEstadoModificacion" 
@@ -170,14 +359,60 @@
                                                FontSize="12" 
                                                FontWeight="SemiBold" 
                                                TextWrapping="Wrap" 
-                                               Margin="0,0,0,16" 
+                                               Margin="0,0,0,12" 
                                                Visibility="Collapsed"/>
 
                                     <Button x:Name="btnGuardarCambios" 
-                                            Content="Guardar Cambios" 
+                                            Content="Guardar Modificaciones" 
                                             Style="{StaticResource PrimaryButton}" 
-                                            Height="44" 
+                                            Height="40" 
                                             Click="BtnGuardarCambios_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- Columna 3: Consulta Detallada de Usuario (Requisito Oficial) -->
+                    <Border Grid.Column="4" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock Text="Consulta de Usuario" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Verifique saldos, retiros del día y último acceso de un usuario." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,16" TextWrapping="Wrap"/>
+
+                                <StackPanel Margin="0,0,0,14">
+                                    <TextBlock Text="Tarjeta a Consultar" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" x:Name="txtTarjetaConsulta" Height="38" FontSize="14" MaxLength="16" Margin="0,0,6,0"/>
+                                        <Button Grid.Column="1" Content="Consultar" Style="{StaticResource PrimaryButton}" Padding="12,0" Height="38" Click="BtnConsultarUsuario_Click"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel x:Name="panelResultadoConsulta" Visibility="Collapsed">
+                                    <Border Background="{StaticResource BgCardLighterBrush}" CornerRadius="10" Padding="14" Margin="0,0,0,12">
+                                        <StackPanel>
+                                            <TextBlock Text="Titular de la Cuenta:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblConsultaNombre" Text="" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,10"/>
+
+                                            <TextBlock Text="Saldo Actual:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblConsultaSaldo" Text="Q 0.00" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,2,0,10"/>
+
+                                            <TextBlock Text="Monto Máximo Disponible (Límite):" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblConsultaLimite" Text="Q 0.00" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,10"/>
+
+                                            <TextBlock Text="Cantidad Retirada Hoy:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblConsultaRetiradoHoy" Text="Q 0.00" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentDangerBrush}" Margin="0,2,0,10"/>
+
+                                            <TextBlock Text="Disponible Restante Hoy:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblConsultaDisponibleRestante" Text="Q 0.00" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="0,2,0,10"/>
+
+                                            <TextBlock Text="Último Acceso al Cajero:" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock x:Name="lblConsultaUltimoAcceso" Text="Sin accesos" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
@@ -185,17 +420,19 @@
                 </Grid>
             </TabItem>
 
-            <!-- Pestaña 2: Bóveda y Stock -->
-            <TabItem Header="Bóveda y Stock">
+            <!-- ========================================================= -->
+            <!-- PESTAÑA 3: BÓVEDA Y CONTROL DE EFECTIVO                   -->
+            <!-- ========================================================= -->
+            <TabItem Header="Bóveda y Control de Efectivo">
                 <Grid Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="40"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="1.2*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Control de Stock Actual -->
-                    <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="24">
+                    <!-- Control de Stock Actual (7 Denominaciones Oficiales) -->
+                    <Border Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -203,105 +440,210 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
-                            <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                                <TextBlock Text="Control de Stock" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Billetes actualmente disponibles en el cajero." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                            <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                                <TextBlock Text="Control de Stock de Bóveda" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Billetes disponibles actualmente en las 7 denominaciones oficiales." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
 
                             <ListView Grid.Row="1" x:Name="lvStockBoveda" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Margin="0,4">
+                                        <Grid Margin="0,5">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="110"/>
+                                                <ColumnDefinition Width="90"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding DenominacionFormat}" FontSize="15" FontWeight="SemiBold"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding CantidadFormat}" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding CantidadFormat}" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"/>
                                             <TextBlock Grid.Column="2" Text="{Binding SubtotalFormat}" FontSize="15" FontWeight="SemiBold" TextAlignment="Right"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
                             </ListView>
 
-                            <Border Grid.Row="2" Background="{StaticResource BgCardLighterBrush}" CornerRadius="8" Padding="12" Margin="0,16,0,0">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <TextBlock Text="Total en Bóveda: " FontSize="16" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="lblTotalBoveda" Text="Q 0.00" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                </StackPanel>
+                            <Border Grid.Row="2" Background="{StaticResource BgCardLighterBrush}" CornerRadius="8" Padding="14" Margin="0,14,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="Estado Bóveda:" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                                        <TextBlock x:Name="lblEstadoInicializadoBadge" Text="Inicializado" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Total: " FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="lblTotalBoveda" Text="Q 0.00" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
                         </Grid>
                     </Border>
 
-                    <!-- Agregar Lote de Billetes -->
-                    <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="24">
+                    <!-- Inicializar Cajero & Agregar Lote de Billetes -->
+                    <Border Grid.Column="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <StackPanel Orientation="Vertical">
-                                <TextBlock Text="Agregar Lote de Billetes" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Ingrese la cantidad de billetes a cargar en la bóveda." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,20" TextWrapping="Wrap"/>
 
-                                <Grid Margin="0,0,0,16">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    
-                                    <!-- Q200 -->
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Q 200:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="txtRecarga200" Height="42" FontSize="14" Margin="0,0,0,12" Text="0"/>
+                                <!-- SECCIÓN 1: INICIALIZAR CAJERO (MÁX Q10,000.00) -->
+                                <Border Background="{StaticResource BgCardLighterBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Text="1. Inicializar Cajero (Apertura del Día)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Ingrese la cantidad de billetes de cada denominación (Máximo total: Q10,000.00)." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,10"/>
 
-                                    <!-- Q100 -->
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Q 100:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="txtRecarga100" Height="42" FontSize="14" Margin="0,0,0,12" Text="0"/>
+                                        <!-- Botones de Acción Rápida -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                            <Button x:Name="btnCargarSugeridos" Content="Cargar Sugeridos (Q10,000)" Style="{StaticResource OutlineButton}" Height="30" Padding="10,2" FontSize="12" Click="BtnCargarSugeridos_Click" Margin="0,0,8,0"/>
+                                            <Button x:Name="btnLimpiarInit" Content="Poner en Cero" Style="{StaticResource OutlineButton}" Height="30" Padding="10,2" FontSize="12" Click="BtnLimpiarInit_Click" Margin="0,0,8,0"/>
+                                            <Button x:Name="btnReiniciarApertura" Content="Reiniciar Día (Pruebas)" Style="{StaticResource OutlineButton}" Height="30" Padding="10,2" FontSize="12" Click="BtnReiniciarApertura_Click" ToolTip="Restablece el estado de inicialización para permitir nuevas pruebas de apertura."/>
+                                        </StackPanel>
 
-                                    <!-- Q50 -->
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Q 50:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="txtRecarga50" Height="42" FontSize="14" Margin="0,0,0,12" Text="0"/>
+                                        <!-- Grid de 7 Denominaciones para Inicializar -->
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
 
-                                    <!-- Q20 -->
-                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Q 20:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="txtRecarga20" Height="42" FontSize="14" Margin="0,0,0,12" Text="0"/>
+                                            <!-- Q200 & Q100 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
+                                                <TextBlock Text="Q 200:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit200" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="20" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,8">
+                                                <TextBlock Text="Q 100:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit100" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="30" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
 
-                                    <!-- Q10 -->
-                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Q 10:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                                    <TextBox Grid.Row="4" Grid.Column="1" x:Name="txtRecarga10" Height="42" FontSize="14" Margin="0,0,0,12" Text="0"/>
+                                            <!-- Q50 & Q20 -->
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
+                                                <TextBlock Text="Q 50:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit50" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="20" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,8">
+                                                <TextBlock Text="Q 20:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit20" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="40" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
 
-                                    <!-- Q5 -->
-                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Q 5:" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,16,12"/>
-                                    <TextBox Grid.Row="5" Grid.Column="1" x:Name="txtRecarga5" Height="42" FontSize="14" Margin="0,0,0,12" Text="0"/>
-                                </Grid>
+                                            <!-- Q10 & Q5 -->
+                                            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
+                                                <TextBlock Text="Q 10:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit10" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="60" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,8">
+                                                <TextBlock Text="Q 5:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit5" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="80" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
 
-                                <TextBlock x:Name="lblEstadoRecarga" 
-                                           Text="" 
-                                           FontSize="12" 
-                                           FontWeight="SemiBold" 
-                                           TextWrapping="Wrap" 
-                                           Margin="0,0,0,16" 
-                                           Visibility="Collapsed"/>
+                                            <!-- Q1 -->
+                                            <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,0">
+                                                <TextBlock Text="Q 1:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtInit1" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="200" TextAlignment="Center" TextChanged="CalcularTotalInit_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="Total Init: " FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock x:Name="lblTotalInit" Text="Q 10,000.00" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}"/>
+                                            </StackPanel>
+                                        </Grid>
 
-                                <Button x:Name="btnProcesarRecarga" 
-                                        Content="Procesar Recarga" 
-                                        Style="{StaticResource SuccessButton}" 
-                                        Height="44" 
-                                        Click="BtnProcesarRecarga_Click"/>
+                                        <TextBlock x:Name="lblEstadoInit" Text="" FontSize="12" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,8"/>
+
+                                        <Button x:Name="btnInicializarCajero" 
+                                                Content="Inicializar Cajero (Máx Q10,000)" 
+                                                Style="{StaticResource PrimaryButton}" 
+                                                Height="38" 
+                                                Click="BtnInicializarCajero_Click"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- SECCIÓN 2: AGREGAR EFECTIVO (RECARGA MÁX Q30,000.00 TRAS INICIALIZAR) -->
+                                <Border Background="{StaticResource BgCardLighterBrush}" CornerRadius="10" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="2. Agregar Efectivo (Lote de Billetes)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Solo después de inicializar. El total en bóveda no podrá pasar los Q30,000.00." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,12"/>
+
+                                        <!-- Grid de 7 Denominaciones para Recarga -->
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Q200 & Q100 -->
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
+                                                <TextBlock Text="Q 200:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga200" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,8">
+                                                <TextBlock Text="Q 100:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga100" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+
+                                            <!-- Q50 & Q20 -->
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
+                                                <TextBlock Text="Q 50:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga50" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,8">
+                                                <TextBlock Text="Q 20:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga20" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+
+                                            <!-- Q10 & Q5 -->
+                                            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
+                                                <TextBlock Text="Q 10:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga10" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,8">
+                                                <TextBlock Text="Q 5:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga5" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+
+                                            <!-- Q1 -->
+                                            <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,0">
+                                                <TextBlock Text="Q 1:" Width="55" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <TextBox x:Name="txtRecarga1" Width="85" Height="38" Padding="2" VerticalContentAlignment="Center" Text="0" TextAlignment="Center" TextChanged="CalcularTotalRecarga_TextChanged"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="Lote: " FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock x:Name="lblTotalRecarga" Text="Q 0.00" FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <TextBlock x:Name="lblEstadoRecarga" Text="" FontSize="12" FontWeight="SemiBold" Visibility="Collapsed" Margin="0,0,0,8"/>
+
+                                        <Button x:Name="btnProcesarRecarga" 
+                                                Content="Agregar Lote de Efectivo (Bóveda)" 
+                                                Style="{StaticResource SuccessButton}" 
+                                                Height="38" 
+                                                Click="BtnProcesarRecarga_Click"/>
+                                    </StackPanel>
+                                </Border>
+
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- Pestaña 3: Auditoría de Transacciones -->
+            <!-- ========================================================= -->
+            <!-- PESTAÑA 4: AUDITORÍA DE TRANSACCIONES                     -->
+            <!-- ========================================================= -->
             <TabItem Header="Auditoría de Transacciones">
-                <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="24" Margin="0,16,0,0">
+                <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -309,22 +651,22 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid Grid.Row="0" Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Control de Transacciones Diarias" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Registro de movimientos procesados en este cajero." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                <TextBlock Text="Historial de Transacciones de Clientes" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Registro de depósitos y retiros con fecha, hora, monto y token generado." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
 
                             <Button Grid.Column="1" 
                                     x:Name="btnActualizarTransacciones" 
                                     Content="Refrescar Lista" 
                                     Style="{StaticResource OutlineButton}" 
-                                    Padding="12,6" 
+                                    Padding="14,6" 
                                     FontSize="12"
                                     Click="BtnActualizarTransacciones_Click"/>
                         </Grid>
@@ -383,9 +725,10 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="70"/>
                                 <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding FechaHora}" Width="150"/>
-                                <DataGridTextColumn Header="Usuario" Binding="{Binding Usuario}" Width="140"/>
-                                <DataGridTextColumn Header="Operación" Binding="{Binding TipoOperacion}" Width="130"/>
-                                <DataGridTextColumn Header="Monto" Binding="{Binding MontoFormateado}" Width="100"/>
+                                <DataGridTextColumn Header="Tarjeta Usuario" Binding="{Binding Usuario}" Width="150"/>
+                                <DataGridTextColumn Header="Operación" Binding="{Binding TipoOperacion}" Width="120"/>
+                                <DataGridTextColumn Header="Monto" Binding="{Binding MontoFormateado}" Width="120"/>
+                                <DataGridTextColumn Header="Token Autorización" Binding="{Binding Token}" Width="130"/>
                                 <DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="*"/>
                             </DataGrid.Columns>
 
@@ -397,13 +740,120 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="NEXUSBANK Core - Transacciones en tiempo real" FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="0" Text="Transacciones registradas en Transacciones.csv" FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" x:Name="lblTotalTransacciones" Text="Total de registros: 0" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
                             </Grid>
                         </Border>
                     </Grid>
                 </Border>
             </TabItem>
+
+            <!-- ========================================================= -->
+            <!-- PESTAÑA 5: BITÁCORA DE AUDITORÍA Y MODIFICACIONES         -->
+            <!-- ========================================================= -->
+            <TabItem Header="Bitácora de Auditoría">
+                <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Bitácora de Eventos y Modificaciones Importantes" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Registro persistente de cambios de PIN, modificaciones de tarjetas o límites, accesos y aperturas de bóveda." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="1" 
+                                    x:Name="btnActualizarBitacora" 
+                                    Content="Refrescar Bitácora" 
+                                    Style="{StaticResource OutlineButton}" 
+                                    Padding="14,6" 
+                                    FontSize="12"
+                                    Click="BtnActualizarBitacora_Click"/>
+                        </Grid>
+
+                        <DataGrid Grid.Row="1" 
+                                  x:Name="dgBitacora"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  CanUserDeleteRows="False"
+                                  SelectionMode="Single"
+                                  GridLinesVisibility="None"
+                                  HeadersVisibility="Column"
+                                  Background="{StaticResource BgPrimaryBrush}"
+                                  RowBackground="{StaticResource BgCardBrush}"
+                                  AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  BorderBrush="{StaticResource BorderBrush}"
+                                  BorderThickness="1"
+                                  FontSize="13"
+                                  RowHeight="36">
+
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#0F172A"/>
+                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="Padding" Value="12,10"/>
+                                    <Setter Property="BorderThickness" Value="0,0,0,1.5"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
+
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Padding" Value="12,6"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="DataGridCell">
+                                                <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+                                                    <ContentPresenter VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#1E3A8A"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.CellStyle>
+
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fecha y Hora" Binding="{Binding FechaHora}" Width="150"/>
+                                <DataGridTextColumn Header="Tipo de Evento" Binding="{Binding TipoEvento}" Width="160"/>
+                                <DataGridTextColumn Header="Usuario / Tarjeta" Binding="{Binding UsuarioOTarjeta}" Width="150"/>
+                                <DataGridTextColumn Header="Detalle del Evento" Binding="{Binding Detalle}" Width="*"/>
+                            </DataGrid.Columns>
+
+                        </DataGrid>
+
+                        <Border Grid.Row="2" Background="{StaticResource BgPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,14,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Bitácora almacenada en Bitacora.csv conforme a especificación" FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" x:Name="lblTotalBitacora" Text="Total de eventos: 0" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </TabItem>
+
         </TabControl>
     </Grid>
 </Window>

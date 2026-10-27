@@ -68,20 +68,27 @@ namespace Cajero.BLL
         }
 
         /// <summary>
-        /// Obtiene la sumatoria de retiros realizados durante el día de hoy (DateTime.Today) por el usuario.
+        /// Obtiene la sumatoria de retiros realizados durante el día de hoy (DateTime.Today) por el usuario,
+        /// incluyendo cualquier tarjeta vinculada previa para asegurar el cumplimiento del límite diario.
         /// </summary>
         public decimal ObtenerRetirosDelDia(string token)
         {
-            var historial = _gestor.ObtenerHistorial(token);
-            if (historial == null || historial.Count == 0)
+            var tarjetas = _gestor.ObtenerTarjetasVinculadas(token);
+            decimal totalRetiros = 0m;
+
+            foreach (var tarj in tarjetas)
             {
-                return 0m;
+                var historial = _gestor.ObtenerHistorial(tarj);
+                if (historial != null && historial.Count > 0)
+                {
+                    totalRetiros += historial
+                        .Where(t => string.Equals(t.TipoMovimiento, "Retiro", StringComparison.OrdinalIgnoreCase)
+                                 && t.FechaHora.Date == DateTime.Today)
+                        .Sum(t => t.Monto);
+                }
             }
 
-            return historial
-                .Where(t => string.Equals(t.TipoMovimiento, "Retiro", StringComparison.OrdinalIgnoreCase)
-                         && t.FechaHora.Date == DateTime.Today)
-                .Sum(t => t.Monto);
+            return totalRetiros;
         }
 
         /// <summary>

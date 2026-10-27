@@ -71,7 +71,7 @@
 
                         <StackPanel Margin="0,0,0,18">
                             <TextBlock Text="PIN de Seguridad (4 dígitos)" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                            <PasswordBox x:Name="pwdPin" MaxLength="6" Height="44" FontSize="15"/>
+                            <PasswordBox x:Name="pwdPin" MaxLength="4" Height="44" FontSize="15"/>
                         </StackPanel>
 
                         <TextBlock x:Name="lblMensajeEstado" 
