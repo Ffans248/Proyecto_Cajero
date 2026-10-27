@@ -81,16 +81,6 @@
                                 Content="Panel Administrador" 
                                 Style="{StaticResource NavMenuButton}" 
                                 Click="BtnNavAdmin_Click"/>
-
-                        <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,12"/>
-
-                        <Button x:Name="btnAbrirVentanaAdmin" 
-                                Content="Panel de Administración" 
-                                Style="{StaticResource OutlineButton}" 
-                                HorizontalContentAlignment="Center" 
-                                Margin="0,4" 
-                                Click="BtnAbrirVentanaAdmin_Click"
-                                Visibility="Collapsed"/>
                     </StackPanel>
                 </Grid>
             </Border>

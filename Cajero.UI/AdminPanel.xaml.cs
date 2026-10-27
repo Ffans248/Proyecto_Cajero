@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Animation;
 using Cajero.BLL;
 using Cajerro.DAL;
 using Cajerro.DAL.Modelos;
@@ -40,12 +42,55 @@ namespace Cajero.UI
 
         #region =================== 1. DASHBOARD Y MÉTRICAS ===================
 
-        private void BtnRefrescarDashboard_Click(object sender, RoutedEventArgs e)
+        private async void BtnRefrescarDashboard_Click(object sender, RoutedEventArgs e)
         {
-            CargarDashboard();
-            CargarStockBoveda();
-            CargarTransacciones();
-            CargarBitacora();
+            await EjecutarFeedbackActualizacionAsync(btnRefrescarDashboard, pnlContenedorDashboard, "Actualizar Métricas", () =>
+            {
+                CargarDashboard();
+                CargarStockBoveda();
+                CargarTransacciones();
+                CargarBitacora();
+            });
+        }
+
+        private async Task EjecutarFeedbackActualizacionAsync(Button btn, UIElement elementoAParpadear, string textoOriginal, Action accionCarga)
+        {
+            if (btn != null)
+            {
+                btn.IsEnabled = false;
+                btn.Content = "⏳ Actualizando...";
+            }
+
+            // 1. Animación de parpadeo visual en el contenedor/menú
+            if (elementoAParpadear != null)
+            {
+                var anim = new DoubleAnimation
+                {
+                    From = 1.0,
+                    To = 0.20,
+                    Duration = TimeSpan.FromMilliseconds(130),
+                    AutoReverse = true,
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut }
+                };
+                elementoAParpadear.BeginAnimation(UIElement.OpacityProperty, anim);
+            }
+
+            // Pequeña pausa para hacer visible el parpadeo
+            await Task.Delay(160);
+
+            // 2. Ejecutar la recarga de datos
+            accionCarga();
+
+            // 3. Feedback visual de éxito
+            if (btn != null)
+            {
+                btn.Content = "✓ ¡Actualizado!";
+                await Task.Delay(650);
+
+                // 4. Restaurar texto original y reactivar
+                btn.Content = textoOriginal;
+                btn.IsEnabled = true;
+            }
         }
 
         private void CargarDashboard()
@@ -714,6 +759,16 @@ namespace Cajero.UI
         private void BtnCerrar_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Evento al cargar la ventana
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Evento al cerrar la ventana
         }
     }
 

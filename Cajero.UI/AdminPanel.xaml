@@ -1,4 +1,4 @@
-﻿<Window x:Class="Cajero.UI.AdminPanel" Loaded="Window_Loaded" Closing="Window_Closing"
+<Window x:Class="Cajero.UI.AdminPanel" Loaded="Window_Loaded" Closing="Window_Closing"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -42,7 +42,7 @@
         </Border>
 
         <!-- Pestañas Principales -->
-        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+        <TabControl x:Name="tcPrincipalAdmin" Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
                     <Setter Property="Background" Value="{StaticResource BgCardBrush}"/>
@@ -84,7 +84,7 @@
             <!-- ========================================================= -->
             <TabItem Header="Dashboard y Métricas">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,16,0,0">
-                    <StackPanel Orientation="Vertical">
+                    <StackPanel x:Name="pnlContenedorDashboard" Orientation="Vertical">
                         
                         <!-- Barra de Actualización de Métricas -->
                         <Grid Margin="0,0,0,16">
@@ -96,7 +96,7 @@
                                 <TextBlock Text="Métricas Operativas y Control Diario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                 <TextBlock Text="Indicadores estadísticos de actividad y disponibilidad del cajero automático." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
-                            <Button Grid.Column="1" Content="Actualizar Métricas" Style="{StaticResource OutlineButton}" Padding="14,6" FontSize="12" Click="BtnRefrescarDashboard_Click"/>
+                            <Button x:Name="btnRefrescarDashboard" Grid.Column="1" Content="Actualizar Métricas" Style="{StaticResource OutlineButton}" Padding="14,6" FontSize="12" Click="BtnRefrescarDashboard_Click"/>
                         </Grid>
 
                         <!-- Fila 1 de Tarjetas KPI -->
@@ -643,7 +643,7 @@
             <!-- PESTAÑA 4: AUDITORÍA DE TRANSACCIONES                     -->
             <!-- ========================================================= -->
             <TabItem Header="Auditoría de Transacciones">
-                <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
+                <Border x:Name="pnlContenedorTransacciones" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -752,7 +752,7 @@
             <!-- PESTAÑA 5: BITÁCORA DE AUDITORÍA Y MODIFICACIONES         -->
             <!-- ========================================================= -->
             <TabItem Header="Bitácora de Auditoría">
-                <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
+                <Border x:Name="pnlContenedorBitacora" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>

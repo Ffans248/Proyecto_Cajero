@@ -76,5 +76,15 @@ namespace Cajero.UI
             main.Show();
             this.Close();
         }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Evento al cargar la ventana
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Evento al cerrar la ventana
+        }
     }
 }

@@ -30,13 +30,11 @@ namespace Cajero.UI
             {
                 MostrarVistaAdmin();
                 btnNavAdmin.Visibility = Visibility.Visible;
-                btnAbrirVentanaAdmin.Visibility = Visibility.Visible;
             }
             else
             {
                 MostrarVistaCliente();
                 btnNavAdmin.Visibility = Visibility.Collapsed;
-                btnAbrirVentanaAdmin.Visibility = Visibility.Collapsed;
             }
         }
 
