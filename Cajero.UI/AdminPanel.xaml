@@ -855,137 +855,167 @@
             </TabItem>
 
             <!-- ========================================================= -->
-            <!-- PESTAÑA 6: RED INTERBANCARIA, LÍMITES Y TOKENS            -->
+            <!-- PESTAÑA 6: RED DE CAJEROS, BANCOS Y BD MAESTRA            -->
             <!-- ========================================================= -->
-            <TabItem Header="Red Interbancaria y Tokens">
-                <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20" Margin="0,16,0,0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="185"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+            <TabItem Header="Red: Cajeros, Bancos y BD Maestra">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,16,0,0">
+                    <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="14" Padding="20">
+                        <StackPanel>
 
-                        <!-- Banner de Red Conectada y Autodescubrimiento LAN -->
-                        <Border Grid.Row="0" Background="#0F172A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,12">
-                            <Grid>
+                            <!-- Banner de BD Maestra y Autodescubrimiento LAN -->
+                            <Border Background="#0F172A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="lblInfoRedAdmin" Text="🗄️ BD Maestra Alojada en Este Equipo: Detectando red..." FontSize="13" FontWeight="Bold" Foreground="#38BDF8" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="lblEstadoDeteccionAdmin" Text="Todos los cajeros y bancos de la red consultan a esta Base de Datos Maestra (Puerto TCP 5000 / SQL localhost\SQLEXPRESS)." FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            x:Name="btnEscanearRedAdmin"
+                                            Content="📡 Escanear Cajeros y Bancos"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Padding="14,6"
+                                            FontSize="12"
+                                            Margin="10,0,0,0"
+                                            Click="BtnEscanearRedAdmin_Click"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- SECCIÓN 1: CAJEROS CONECTADOS A LA RED Y A LA BD MAESTRA -->
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="1. Cajeros Automáticos (ATMs) Detectados en la Red (Consultando a esta BD Maestra)" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Muestra el cajero local y todos los demás cajeros conectados en la red que consultan la Base de Datos Maestra alojada en este equipo." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <DataGrid x:Name="dgCajerosRed"
+                                      Height="155"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      SelectionMode="Single"
+                                      GridLinesVisibility="None"
+                                      HeadersVisibility="Column"
+                                      Background="{StaticResource BgPrimaryBrush}"
+                                      RowBackground="{StaticResource BgCardBrush}"
+                                      AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      BorderBrush="{StaticResource BorderBrush}"
+                                      BorderThickness="1"
+                                      FontSize="12.5"
+                                      RowHeight="32"
+                                      Margin="0,0,0,16">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Cajero ID" Binding="{Binding CodigoCajero}" Width="90"/>
+                                    <DataGridTextColumn Header="Nombre / Ubicación del Cajero" Binding="{Binding NombreCajero}" Width="230"/>
+                                    <DataGridTextColumn Header="Banco" Binding="{Binding CodigoBanco}" Width="80"/>
+                                    <DataGridTextColumn Header="IP : Puerto" Binding="{Binding EndpointTexto}" Width="135"/>
+                                    <DataGridTextColumn Header="Estado con BD Maestra" Binding="{Binding EstadoConexionTexto}" Width="245"/>
+                                    <DataGridTextColumn Header="Efectivo" Binding="{Binding EfectivoFormat}" Width="115"/>
+                                    <DataGridTextColumn Header="Última Consulta a BD" Binding="{Binding UltimaConexionFormat}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- SECCIÓN 2: BANCOS DE LA RED Y LÍMITES COORDINADOS -->
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock x:Name="lblInfoRedAdmin" Text="📡 Red Conectada: Detectando..." FontSize="13" FontWeight="Bold" Foreground="#38BDF8"/>
-                                    <TextBlock x:Name="lblEstadoDeteccionAdmin" Text="Presione 'Escanear Red Local' para detectar bancos activos en la misma red." FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="2. Bancos de la Red y Límites Diarios Coordinados en BD Maestra" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Los montos de transferencias interbancarias se restan coordinadamente al límite diario de nuestro banco y del banco externo." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                                 </StackPanel>
+
                                 <Button Grid.Column="1"
-                                        x:Name="btnEscanearRedAdmin"
-                                        Content="📡 Escanear Red Local"
-                                        Style="{StaticResource PrimaryButton}"
+                                        x:Name="btnReiniciarCuposBancos"
+                                        Content="Reiniciar Cupos Hoy"
+                                        Style="{StaticResource OutlineButton}"
+                                        Padding="12,6"
+                                        FontSize="12"
+                                        Margin="0,0,8,0"
+                                        Click="BtnReiniciarCuposBancos_Click"/>
+
+                                <Button Grid.Column="2"
+                                        x:Name="btnActualizarInterbancario"
+                                        Content="Refrescar Tablas"
+                                        Style="{StaticResource OutlineButton}"
                                         Padding="14,6"
                                         FontSize="12"
-                                        Click="BtnEscanearRedAdmin_Click"/>
+                                        Click="BtnActualizarInterbancario_Click"/>
                             </Grid>
-                        </Border>
 
-                        <!-- Encabezado Bancos en Red -->
-                        <Grid Grid.Row="1" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                            <DataGrid x:Name="dgBancosRed"
+                                      Height="155"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      SelectionMode="Single"
+                                      GridLinesVisibility="None"
+                                      HeadersVisibility="Column"
+                                      Background="{StaticResource BgPrimaryBrush}"
+                                      RowBackground="{StaticResource BgCardBrush}"
+                                      AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      BorderBrush="{StaticResource BorderBrush}"
+                                      BorderThickness="1"
+                                      FontSize="12.5"
+                                      RowHeight="32"
+                                      Margin="0,0,0,16">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Código" Binding="{Binding CodigoBanco}" Width="80"/>
+                                    <DataGridTextColumn Header="Banco" Binding="{Binding NombreBanco}" Width="190"/>
+                                    <DataGridTextColumn Header="IP : Puerto" Binding="{Binding EndpointTexto}" Width="135"/>
+                                    <DataGridTextColumn Header="Estado en Red / BD Maestra" Binding="{Binding EstadoRedTexto}" Width="195"/>
+                                    <DataGridTextColumn Header="Límite Diario" Binding="{Binding LimiteFormat}" Width="120"/>
+                                    <DataGridTextColumn Header="Restado Hoy" Binding="{Binding TransferidoFormat}" Width="120"/>
+                                    <DataGridTextColumn Header="Disponible Hoy" Binding="{Binding DisponibleFormat}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
 
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Bancos de la Red y Límites Diarios Coordinados" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Los montos de transferencias interbancarias se restan coordinadamente al límite diario de nuestro banco y del banco externo." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                            <!-- SECCIÓN 3: REGISTRO COMPARTIDO DE TRANSFERENCIAS Y TOKENS -->
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="3. Registro Maestro de Transferencias y Tokens (Nuestro Banco + Otro Banco + Usuario)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}"/>
+                                <TextBlock Text="Cada transferencia genera un TokenTransferencia único guardado simultáneamente en la BD Maestra para Nuestro Banco, el Otro Banco y el Usuario." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                             </StackPanel>
 
-                            <Button Grid.Column="1"
-                                    x:Name="btnReiniciarCuposBancos"
-                                    Content="Reiniciar Cupos Hoy"
-                                    Style="{StaticResource OutlineButton}"
-                                    Padding="12,6"
-                                    FontSize="12"
-                                    Margin="0,0,8,0"
-                                    Click="BtnReiniciarCuposBancos_Click"/>
+                            <DataGrid x:Name="dgTransferenciasBancarias"
+                                      Height="185"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      CanUserDeleteRows="False"
+                                      SelectionMode="Single"
+                                      GridLinesVisibility="None"
+                                      HeadersVisibility="Column"
+                                      Background="{StaticResource BgPrimaryBrush}"
+                                      RowBackground="{StaticResource BgCardBrush}"
+                                      AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
+                                      Foreground="{StaticResource TextPrimaryBrush}"
+                                      BorderBrush="{StaticResource BorderBrush}"
+                                      BorderThickness="1"
+                                      FontSize="12"
+                                      RowHeight="32">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Token Transferencia" Binding="{Binding TokenTransferencia}" Width="175"/>
+                                    <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding FechaFormat}" Width="140"/>
+                                    <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTransferencia}" Width="115"/>
+                                    <DataGridTextColumn Header="Origen" Binding="{Binding OrigenFormat}" Width="210"/>
+                                    <DataGridTextColumn Header="Destino" Binding="{Binding DestinoFormat}" Width="210"/>
+                                    <DataGridTextColumn Header="Monto" Binding="{Binding MontoFormat}" Width="105"/>
+                                    <DataGridTextColumn Header="Cupos Restantes (Nuestro / Otro)" Binding="{Binding CuposFormat}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
 
-                            <Button Grid.Column="2"
-                                    x:Name="btnActualizarInterbancario"
-                                    Content="Refrescar Red y Tokens"
-                                    Style="{StaticResource OutlineButton}"
-                                    Padding="14,6"
-                                    FontSize="12"
-                                    Click="BtnActualizarInterbancario_Click"/>
-                        </Grid>
-
-                        <!-- Tabla de Bancos -->
-                        <DataGrid Grid.Row="2"
-                                  x:Name="dgBancosRed"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  SelectionMode="Single"
-                                  GridLinesVisibility="None"
-                                  HeadersVisibility="Column"
-                                  Background="{StaticResource BgPrimaryBrush}"
-                                  RowBackground="{StaticResource BgCardBrush}"
-                                  AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
-                                  Foreground="{StaticResource TextPrimaryBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  BorderThickness="1"
-                                  FontSize="12.5"
-                                  RowHeight="34"
-                                  Margin="0,0,0,14">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Código" Binding="{Binding CodigoBanco}" Width="80"/>
-                                <DataGridTextColumn Header="Banco" Binding="{Binding NombreBanco}" Width="190"/>
-                                <DataGridTextColumn Header="IP : Puerto" Binding="{Binding EndpointTexto}" Width="135"/>
-                                <DataGridTextColumn Header="Estado en Red" Binding="{Binding EstadoRedTexto}" Width="180"/>
-                                <DataGridTextColumn Header="Límite Diario" Binding="{Binding LimiteFormat}" Width="125"/>
-                                <DataGridTextColumn Header="Restado Hoy" Binding="{Binding TransferidoFormat}" Width="125"/>
-                                <DataGridTextColumn Header="Disponible Hoy" Binding="{Binding DisponibleFormat}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <!-- Encabezado Tokens Compartidos -->
-                        <StackPanel Grid.Row="3" Margin="0,0,0,8">
-                            <TextBlock Text="Registro Compartido de Transferencias y Tokens (Nuestro Banco + Otro Banco + Usuario)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}"/>
-                            <TextBlock Text="Cada transferencia genera un TokenTransferencia único guardado simultáneamente en Nuestro Banco, el Otro Banco y el historial del Usuario." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                         </StackPanel>
-
-                        <!-- Tabla de Transferencias Compartidas -->
-                        <DataGrid Grid.Row="4"
-                                  x:Name="dgTransferenciasBancarias"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  SelectionMode="Single"
-                                  GridLinesVisibility="None"
-                                  HeadersVisibility="Column"
-                                  Background="{StaticResource BgPrimaryBrush}"
-                                  RowBackground="{StaticResource BgCardBrush}"
-                                  AlternatingRowBackground="{StaticResource BgCardLighterBrush}"
-                                  Foreground="{StaticResource TextPrimaryBrush}"
-                                  BorderBrush="{StaticResource BorderBrush}"
-                                  BorderThickness="1"
-                                  FontSize="12"
-                                  RowHeight="34">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Token Transferencia" Binding="{Binding TokenTransferencia}" Width="175"/>
-                                <DataGridTextColumn Header="Fecha / Hora" Binding="{Binding FechaFormat}" Width="140"/>
-                                <DataGridTextColumn Header="Tipo" Binding="{Binding TipoTransferencia}" Width="115"/>
-                                <DataGridTextColumn Header="Origen" Binding="{Binding OrigenFormat}" Width="210"/>
-                                <DataGridTextColumn Header="Destino" Binding="{Binding DestinoFormat}" Width="210"/>
-                                <DataGridTextColumn Header="Monto" Binding="{Binding MontoFormat}" Width="105"/>
-                                <DataGridTextColumn Header="Cupos Restantes (Nuestro / Otro)" Binding="{Binding CuposFormat}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
+                    </Border>
+                </ScrollViewer>
             </TabItem>
 
         </TabControl>

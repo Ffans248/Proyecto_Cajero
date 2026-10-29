@@ -18,6 +18,7 @@ namespace Cajero.UI
         private readonly ObservableCollection<TransaccionItem> _transacciones = new();
         private readonly ObservableCollection<BilleteItem> _stockBoveda = new();
         private readonly ObservableCollection<RegistroBitacora> _bitacora = new();
+        private readonly ObservableCollection<CajeroRedInfo> _cajerosRed = new();
         private readonly ObservableCollection<BancoRedVistaItem> _bancosRed = new();
         private readonly ObservableCollection<TransferenciaBancariaVistaItem> _transferenciasBancarias = new();
         private Usuario? _usuarioModificacionActual;
@@ -34,6 +35,7 @@ namespace Cajero.UI
             dgTransacciones.ItemsSource = _transacciones;
             lvStockBoveda.ItemsSource = _stockBoveda;
             dgBitacora.ItemsSource = _bitacora;
+            dgCajerosRed.ItemsSource = _cajerosRed;
             dgBancosRed.ItemsSource = _bancosRed;
             dgTransferenciasBancarias.ItemsSource = _transferenciasBancarias;
 
@@ -788,17 +790,24 @@ namespace Cajero.UI
 
                 if (mostrarDialogo)
                 {
+                    string listaCajeros = res.CajerosDetectados.Count > 0
+                        ? string.Join("\n", res.CajerosDetectados.Select(c => $"  • {c.CodigoCajero} - {c.NombreCajero} ({c.IP}:{c.Puerto}) [{c.CodigoBanco}]"))
+                        : "  • Solo el cajero local.";
+
                     string listaBancos = res.HayOtrosBancosConectados
                         ? string.Join("\n", res.BancosDetectados.Select(b => $"  • {b.CodigoBanco} - {b.NombreBanco} ({b.IP}:{b.Puerto})"))
-                        : "  • Ningún otro banco activo fue detectado en esta red.";
+                        : "  • Ningún otro servidor bancario externo activo en esta subred (Todos consultan esta BD Maestra).";
 
                     CustomMessageBox.Show(
-                        $"Red Conectada: {res.NombreRedSsid} ({res.TipoInterfaz})\n" +
-                        $"IP Local: {res.IpLocal} | Subred: {res.SubredCidr} | Gateway: {res.PuertaEnlace}\n" +
-                        $"Otras Interfaces: {res.InterfacesSecundarias}\n" +
-                        $"Hosts en LAN: {string.Join(", ", res.HostsActivosEnLan)}\n\n" +
-                        $"Bancos Detectados ({res.BancosDetectados.Count}):\n{listaBancos}",
-                        "Resultado de Escaneo de Red",
+                        $"🗄️ BASE DE DATOS MAESTRA (ALOJADA EN ESTE EQUIPO)\n" +
+                        $"• Servidor TCP BD Maestra: {res.IpLocal}:5000 (UDP Discovery: 5005)\n" +
+                        $"• Instancia SQL Server: {res.InstanciaSqlMaestra}\n" +
+                        $"• Red Conectada: {res.NombreRedSsid} ({res.TipoInterfaz}) | Subred: {res.SubredCidr}\n" +
+                        $"• Otras Interfaces: {res.InterfacesSecundarias}\n" +
+                        $"──────────────────────────────────────────────────\n" +
+                        $"🖥️ CAJEROS (ATMs) CONECTADOS A ESTA BD MAESTRA ({res.CajerosDetectados.Count}):\n{listaCajeros}\n\n" +
+                        $"🏦 OTROS BANCOS DETECTADOS EN RED ({res.BancosDetectados.Count}):\n{listaBancos}",
+                        "Escaneo de Cajeros, Bancos y BD Maestra",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
                 }
@@ -808,7 +817,7 @@ namespace Cajero.UI
             {
                 if (btnEscanearRedAdmin != null)
                 {
-                    btnEscanearRedAdmin.Content = "📡 Escanear Red Local";
+                    btnEscanearRedAdmin.Content = "📡 Escanear Cajeros y Bancos";
                     btnEscanearRedAdmin.IsEnabled = true;
                 }
             }
@@ -827,7 +836,7 @@ namespace Cajero.UI
             CargarRedInterbancaria();
             CargarBitacora();
             CustomMessageBox.Show(
-                "Los límites diarios de todos los bancos en la red han sido reiniciados a Q 0.00 transferidos hoy.",
+                "Los límites diarios de todos los bancos en la BD Maestra han sido reiniciados a Q 0.00 transferidos hoy.",
                 "Cupos Interbancarios Reiniciados",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -838,7 +847,13 @@ namespace Cajero.UI
             var infoRed = DescubridorRedBancaria.ObtenerInformacionRedActual();
             if (lblInfoRedAdmin != null && lblInfoRedAdmin.Text.Contains("Detectando"))
             {
-                lblInfoRedAdmin.Text = $"📡 {infoRed.ResumenRedCorto}  |  VPN/Otras: {infoRed.InterfacesSecundarias}";
+                lblInfoRedAdmin.Text = $"🗄️ {infoRed.ResumenRedCorto}  |  VPN/Otras: {infoRed.InterfacesSecundarias}";
+            }
+
+            _cajerosRed.Clear();
+            foreach (var c in _dal.ObtenerCajerosRed())
+            {
+                _cajerosRed.Add(c);
             }
 
             _bancosRed.Clear();

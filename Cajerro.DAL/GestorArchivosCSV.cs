@@ -24,6 +24,7 @@ namespace Cajerro.DAL
         private readonly string _rutaBoveda;
         private readonly string _rutaBitacora;
         private readonly string _rutaEstadoCajero;
+        private readonly string _rutaCajerosRed;
         private readonly string _rutaBancosRed;
         private readonly string _rutaCuentasExternas;
         private readonly string _rutaTransferenciasNuestroBanco;
@@ -33,6 +34,7 @@ namespace Cajerro.DAL
         private const string EncabezadoTransacciones = "NumeroTarjeta,FechaHora,TipoMovimiento,Monto,Token";
         private const string EncabezadoBoveda = "Denominacion,Cantidad";
         private const string EncabezadoBitacora = "FechaHora,TipoEvento,UsuarioOTarjeta,Detalle";
+        private const string EncabezadoCajerosRed = "CodigoCajero,NombreCajero,CodigoBanco,IP,Puerto,EsLocal,EnLinea,EfectivoActual,UltimaConexion";
         private const string EncabezadoBancosRed = "CodigoBanco,NombreBanco,IP,Puerto,EsPropio,LimiteDiario,TransferidoHoy,FechaUltimoReinicio";
         private const string EncabezadoCuentasExternas = "CodigoBanco,NumeroCuenta,NombreTitular,SaldoActual,Activa";
         private const string EncabezadoTransferencias = "TokenTransferencia,FechaHora,TipoTransferencia,BancoOrigen,CuentaOrigen,NombreOrigen,BancoDestino,CuentaDestino,NombreDestino,Monto,Concepto,CupoRestanteOrigen,CupoRestanteDestino,Estado";
@@ -55,6 +57,7 @@ namespace Cajerro.DAL
             _rutaBoveda = Path.Combine(_rutaDirectorio, "Boveda.csv");
             _rutaBitacora = Path.Combine(_rutaDirectorio, "Bitacora.csv");
             _rutaEstadoCajero = Path.Combine(_rutaDirectorio, "EstadoCajero.txt");
+            _rutaCajerosRed = Path.Combine(_rutaDirectorio, "CajerosRed.csv");
             _rutaBancosRed = Path.Combine(_rutaDirectorio, "BancosRed.csv");
             _rutaCuentasExternas = Path.Combine(_rutaDirectorio, "CuentasExternas.csv");
             _rutaTransferenciasNuestroBanco = Path.Combine(_rutaDirectorio, "TransferenciasNuestroBanco.csv");
@@ -176,6 +179,20 @@ namespace Cajerro.DAL
                     using (StreamWriter sw = new StreamWriter(_rutaTransferenciasOtroBanco, append: false, Encoding.UTF8))
                     {
                         sw.WriteLine(EncabezadoTransferencias);
+                    }
+                }
+
+                // 8. Inicialización de Cajeros de la Red que consultan la BD Maestra
+                if (!File.Exists(_rutaCajerosRed))
+                {
+                    using (StreamWriter sw = new StreamWriter(_rutaCajerosRed, append: false, Encoding.UTF8))
+                    {
+                        sw.WriteLine(EncabezadoCajerosRed);
+                        sw.WriteLine($"ATM-01,Cajero Central Zona 1 (Maestro Local),BANC01,127.0.0.1,5000,true,true,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        sw.WriteLine($"ATM-02,Cajero Sucursal Norte,BANC01,10.219.19.12,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        sw.WriteLine($"ATM-03,Cajero Campus Central,BANC02,10.219.19.13,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        sw.WriteLine($"ATM-04,Cajero Plaza Sur,BANC03,10.219.19.14,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        sw.WriteLine($"ATM-05,Cajero Centro Comercial,BANC04,10.219.19.15,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                     }
                 }
             }
@@ -919,6 +936,87 @@ namespace Cajerro.DAL
         #endregion
 
         #region Red Interbancaria, Verificación de Cuentas y Registro de Tokens
+
+        public List<CajeroRedInfo> ObtenerCajerosRed()
+        {
+            var lista = new List<CajeroRedInfo>();
+            if (!File.Exists(_rutaCajerosRed)) return lista;
+
+            try
+            {
+                using (StreamReader sr = new StreamReader(_rutaCajerosRed, Encoding.UTF8))
+                {
+                    string? encabezado = sr.ReadLine();
+                    if (encabezado == null) return lista;
+
+                    string? linea;
+                    while ((linea = sr.ReadLine()) != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(linea)) continue;
+                        string[] p = linea.Split(',');
+                        if (p.Length < 9) continue;
+
+                        int.TryParse(p[4].Trim(), out int pto);
+                        bool.TryParse(p[5].Trim(), out bool esLoc);
+                        bool.TryParse(p[6].Trim(), out bool enLin);
+                        decimal.TryParse(p[7].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal efec);
+                        DateTime.TryParse(p[8].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime ultCon);
+
+                        lista.Add(new CajeroRedInfo
+                        {
+                            CodigoCajero = p[0].Trim(),
+                            NombreCajero = p[1].Trim(),
+                            CodigoBanco = p[2].Trim(),
+                            IP = p[3].Trim(),
+                            Puerto = pto > 0 ? pto : 5000,
+                            EsLocal = esLoc,
+                            EnLinea = esLoc || enLin,
+                            EfectivoActual = efec,
+                            UltimaConexionBdMaestra = ultCon == default ? DateTime.Now : ultCon
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RegistrarError("ObtenerCajerosRed", "Error al leer CajerosRed.csv.", ex);
+            }
+
+            return lista;
+        }
+
+        public bool GuardarCajerosRed(List<CajeroRedInfo> cajeros)
+        {
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(_rutaCajerosRed, append: false, Encoding.UTF8))
+                {
+                    sw.WriteLine(EncabezadoCajerosRed);
+                    foreach (var c in cajeros)
+                    {
+                        sw.WriteLine(string.Format(
+                            CultureInfo.InvariantCulture,
+                            "{0},{1},{2},{3},{4},{5},{6},{7:F2},{8:yyyy-MM-dd HH:mm:ss}",
+                            c.CodigoCajero.Trim(),
+                            c.NombreCajero.Trim().Replace(',', ' '),
+                            c.CodigoBanco.Trim(),
+                            c.IP.Trim(),
+                            c.Puerto,
+                            c.EsLocal ? "true" : "false",
+                            (c.EsLocal || c.EnLinea) ? "true" : "false",
+                            c.EfectivoActual,
+                            c.UltimaConexionBdMaestra
+                        ));
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                RegistrarError("GuardarCajerosRed", "Error al guardar CajerosRed.csv.", ex);
+                return false;
+            }
+        }
 
         public List<BancoRedInfo> ObtenerBancosRed()
         {

@@ -4,6 +4,30 @@ using System.Collections.Generic;
 namespace Cajerro.DAL.Modelos
 {
     /// <summary>
+    /// Representa un Cajero Automático (ATM) dentro de la red que consulta a la Base de Datos Maestra alojada en este equipo.
+    /// </summary>
+    public class CajeroRedInfo
+    {
+        public string CodigoCajero { get; set; } = string.Empty;
+        public string NombreCajero { get; set; } = string.Empty;
+        public string CodigoBanco { get; set; } = "BANC01";
+        public string IP { get; set; } = "127.0.0.1";
+        public int Puerto { get; set; } = 5000;
+        public bool EsLocal { get; set; }
+        public bool EnLinea { get; set; }
+        public decimal EfectivoActual { get; set; } = 10000.00m;
+        public DateTime UltimaConexionBdMaestra { get; set; } = DateTime.Now;
+
+        public string EndpointTexto => $"{IP}:{Puerto}";
+        public string EfectivoFormat => $"Q {EfectivoActual:N2}";
+        public string UltimaConexionFormat => EnLinea ? UltimaConexionBdMaestra.ToString("dd/MM/yyyy HH:mm:ss") : "Sin conexión aún";
+        public string EstadoConexionTexto =>
+            EsLocal
+                ? $"🟢 EN LÍNEA - Cajero Maestro Local ({IP})"
+                : (EnLinea ? $"🟢 CONECTADO A BD MAESTRA ({IP})" : $"⚪ Esperando conexión en red ({IP})");
+    }
+
+    /// <summary>
     /// Representa un banco dentro de la red interbancaria y su límite (cupo) diario coordinado.
     /// </summary>
     public class BancoRedInfo
@@ -20,17 +44,17 @@ namespace Cajerro.DAL.Modelos
         public DateTime FechaUltimoReinicio { get; set; } = DateTime.Today;
 
         public string EndpointTexto => $"{IP}:{Puerto}";
-        public string RolTexto => EsPropio ? "NUESTRO BANCO (Local)" : (EnLinea ? "🟢 DETECTADO EN RED" : "⚪ Sin conexión LAN (Simulado)");
-        public string EstadoRedTexto => EsPropio ? $"🟢 Activo ({IP}:{Puerto})" : (EnLinea ? $"🟢 En Línea ({IP}:{Puerto})" : $"⚪ No detectado en LAN");
+        public string RolTexto => EsPropio ? "NUESTRO BANCO (BD Maestra)" : (EnLinea ? "🟢 DETECTADO EN RED" : "⚪ Sin conexión LAN (En BD Maestra)");
+        public string EstadoRedTexto => EsPropio ? $"🟢 BD Maestra ({IP}:{Puerto})" : (EnLinea ? $"🟢 En Línea ({IP}:{Puerto})" : $"⚪ Alojado en BD Maestra Local");
         public string LimiteFormateado => $"Q {LimiteDiario:N2}";
         public string TransferidoFormateado => $"Q {TransferidoHoy:N2}";
         public string DisponibleFormateado => $"Q {DisponibleHoy:N2}";
         public string DescripcionCombo =>
-            $"{CodigoBanco} - {NombreBanco} [{(EnLinea ? $"🟢 EN RED {IP}" : "⚪ Simulado")}] (Cupo Disp: Q {DisponibleHoy:N2})";
+            $"{CodigoBanco} - {NombreBanco} [{(EnLinea ? $"🟢 EN RED {IP}" : "🗄️ En BD Maestra")}] (Cupo Disp: Q {DisponibleHoy:N2})";
     }
 
     /// <summary>
-    /// Información diagnóstica de la red actual y los bancos detectados en la misma subred.
+    /// Información diagnóstica de la red actual, estado de la BD Maestra y los cajeros/bancos detectados en la misma subred.
     /// </summary>
     public class ResultadoEscaneoRed
     {
@@ -41,19 +65,23 @@ namespace Cajerro.DAL.Modelos
         public string SubredCidr { get; set; } = "127.0.0.0/24";
         public string PuertaEnlace { get; set; } = "N/A";
         public string InterfacesSecundarias { get; set; } = string.Empty;
+        public string InstanciaSqlMaestra { get; set; } = @"localhost\SQLEXPRESS (BD_CajeroRed)";
         public List<string> HostsActivosEnLan { get; set; } = new();
+        public List<CajeroRedInfo> CajerosDetectados { get; set; } = new();
         public List<BancoRedInfo> BancosDetectados { get; set; } = new();
         public DateTime FechaEscaneo { get; set; } = DateTime.Now;
 
         public bool HayOtrosBancosConectados => BancosDetectados.Count > 0;
+        public int TotalCajerosEnLinea => CajerosDetectados.Count;
 
         public string ResumenRedCorto =>
-            $"Red: {NombreRedSsid} ({TipoInterfaz}) | IP Local: {IpLocal} | Subred: {SubredCidr} | Gateway: {PuertaEnlace}";
+            $"Red: {NombreRedSsid} ({TipoInterfaz}) | IP BD Maestra: {IpLocal}:5000 | SQL: {InstanciaSqlMaestra} | Subred: {SubredCidr}";
 
         public string ResumenDeteccionBancos =>
-            HayOtrosBancosConectados
-                ? $"🟢 Se detectaron {BancosDetectados.Count} banco(s) conectado(s) en la red '{NombreRedSsid}': {string.Join(", ", BancosDetectados.ConvertAll(b => $"{b.CodigoBanco} ({b.NombreBanco} en {b.IP}:{b.Puerto})"))}"
-                : $"🟠 Conectado a la red '{NombreRedSsid}' (IP {IpLocal}), pero NO se detectó ningún otro banco activo en {SubredCidr} (Puertos TCP 5000 / UDP 5005).";
+            $"🗄️ BD Maestra Activa en {IpLocal}:5000  |  🖥️ Cajeros en Línea: {CajerosDetectados.Count} ({string.Join(", ", CajerosDetectados.ConvertAll(c => $"{c.CodigoCajero}@{c.IP}"))})  |  " +
+            (HayOtrosBancosConectados
+                ? $"🏦 Otros Bancos en Red: {BancosDetectados.Count} ({string.Join(", ", BancosDetectados.ConvertAll(b => $"{b.CodigoBanco}@{b.IP}"))})"
+                : "🏦 Otros Bancos Remotos: 0 externos en LAN (Consultando BD Maestra Local)");
     }
 
     /// <summary>
@@ -86,7 +114,7 @@ namespace Cajerro.DAL.Modelos
         public string Concepto { get; set; } = string.Empty;
         public decimal CupoRestanteBancoOrigen { get; set; }
         public decimal CupoRestanteBancoDestino { get; set; }
-        public string GuardadoEn { get; set; } = "NUESTRO_BANCO + OTRO_BANCO + USUARIO";
+        public string GuardadoEn { get; set; } = "BD_MAESTRA (NUESTRO_BANCO + OTRO_BANCO + USUARIO)";
         public string Estado { get; set; } = "APROBADA";
 
         public string FechaFormateada => FechaHora.ToString("dd/MM/yyyy HH:mm:ss");

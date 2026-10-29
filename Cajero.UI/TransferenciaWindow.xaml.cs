@@ -74,25 +74,30 @@ namespace Cajero.UI
                         ? string.Join(", ", res.HostsActivosEnLan)
                         : "Solo este equipo";
 
+                    string listaCajeros = res.CajerosDetectados.Count > 0
+                        ? string.Join("\n", res.CajerosDetectados.Select(c => $"  • {c.CodigoCajero} - {c.NombreCajero} ({c.IP}:{c.Puerto}) [{c.CodigoBanco}]"))
+                        : "  • Solo el cajero local.";
+
                     string listaBancos = res.HayOtrosBancosConectados
                         ? string.Join("\n", res.BancosDetectados.Select(b => $"  • {b.CodigoBanco} - {b.NombreBanco} ({b.IP}:{b.Puerto}) - Cupo Disp: Q {b.DisponibleHoy:N2}"))
-                        : "  • Ningún otro servidor bancario respondió en los puertos TCP 5000/5001 ni UDP 5005.";
+                        : "  • Ningún otro servidor bancario externo activo en esta subred (Todos consultan esta BD Maestra).";
 
                     string detalle =
-                        $"DIAGNÓSTICO DE RED Y DETECCIÓN DE BANCOS\n" +
+                        $"🗄️ DIAGNÓSTICO DE BD MAESTRA, CAJEROS Y BANCOS EN RED\n" +
                         $"══════════════════════════════════════════════════\n" +
+                        $"• Base de Datos Maestra (Este Equipo): {res.IpLocal}:5000 | SQL: {res.InstanciaSqlMaestra}\n" +
                         $"• Red Conectada (SSID): {res.NombreRedSsid} ({res.TipoInterfaz})\n" +
-                        $"• Adaptador: {res.DescripcionAdaptador}\n" +
-                        $"• Tu Dirección IPv4 Local: {res.IpLocal}\n" +
-                        $"• Subred Escaneada: {res.SubredCidr}\n" +
-                        $"• Puerta de Enlace (Gateway): {res.PuertaEnlace}\n" +
+                        $"• Subred Escaneada: {res.SubredCidr} | Gateway: {res.PuertaEnlace}\n" +
                         $"• Otras Interfaces Activas: {res.InterfacesSecundarias}\n" +
                         $"• Equipos Vistos en la Red (ARP/LAN): {hosts}\n" +
                         $"──────────────────────────────────────────────────\n" +
-                        $"BANCOS EXTERNOS DETECTADOS EN LA MISMA RED ({res.BancosDetectados.Count}):\n" +
+                        $"🖥️ CAJEROS (ATMs) CONECTADOS A ESTA BD MAESTRA ({res.CajerosDetectados.Count}):\n" +
+                        $"{listaCajeros}\n" +
+                        $"──────────────────────────────────────────────────\n" +
+                        $"🏦 BANCOS EXTERNOS DETECTADOS EN RED ({res.BancosDetectados.Count}):\n" +
                         $"{listaBancos}";
 
-                    CustomMessageBox.Show(detalle, "Escaneo de Red Interbancaria", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CustomMessageBox.Show(detalle, "Escaneo de Cajeros, Bancos y BD Maestra", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)

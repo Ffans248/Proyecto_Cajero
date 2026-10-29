@@ -50,8 +50,10 @@ namespace Cajerro.DAL.Interfaces
 
         #endregion
 
-        #region Red Interbancaria y Transferencias
+        #region Red Interbancaria, Cajeros en Red y Transferencias
 
+        List<CajeroRedInfo> ObtenerCajerosRed();
+        bool GuardarCajerosRed(List<CajeroRedInfo> cajeros);
         List<BancoRedInfo> ObtenerBancosRed();
         bool GuardarBancosRed(List<BancoRedInfo> bancos);
         bool ReiniciarCuposDiariosBancos();

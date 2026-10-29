@@ -18,11 +18,11 @@ using Cajerro.DAL.Modelos;
 namespace Cajerro.DAL
 {
     /// <summary>
-    /// Servicio de autodescubrimiento de red e interconexión bancaria LAN (UDP Broadcast 5005 + Escaneo TCP 5000).
-    /// Permite:
-    /// 1. Identificar a qué red Wi-Fi / Ethernet / VPN está conectada esta computadora (SSID, IP local, Subred, Gateway).
-    /// 2. Escuchar peticiones de otros bancos en la misma red (UDP 5005 y TCP 5000).
-    /// 3. Detectar automáticamente otros bancos conectados a la misma red y sincronizar su IP y estado en línea.
+    /// Servicio Maestro de Red, Autodescubrimiento de Cajeros/Bancos (UDP 5005) y Gateway de Base de Datos Maestra (TCP 5000).
+    /// Este equipo aloja la Base de Datos Maestra para todos los cajeros y bancos conectados a la red:
+    /// 1. Detecta a qué red Wi-Fi / LAN / VPN está conectado este equipo.
+    /// 2. Detecta automáticamente todos los demás Cajeros (ATMs) y Bancos conectados a la misma red.
+    /// 3. Atiende las consultas a la Base de Datos Maestra desde cualquier cajero o banco remoto en el puerto TCP 5000.
     /// </summary>
     public static class DescubridorRedBancaria
     {
@@ -35,9 +35,12 @@ namespace Cajerro.DAL
         private static TcpListener? _tcpListener;
         private static CancellationTokenSource? _cts;
 
+        // Registro en memoria de cajeros remotos que han hecho heartbeat o consulta contra esta BD Maestra
+        private static readonly ConcurrentDictionary<string, CajeroRedInfo> _cajerosConectadosBdMaestra = new(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
-        /// Inicia en segundo plano el respondedor UDP (puerto 5005) y el nodo TCP interbancario (puerto 5000 si está libre)
-        /// para que otros bancos en la misma red puedan detectar esta instancia automáticamente.
+        /// Inicia en segundo plano el respondedor UDP (puerto 5005) y el Servidor Maestro de BD TCP (puerto 5000)
+        /// para que todos los demás cajeros y bancos de la red detecten este equipo y consulten la Base de Datos Maestra.
         /// </summary>
         public static void AsegurarNodoEnRedActivo(IGestorArchivos dal)
         {
@@ -53,8 +56,8 @@ namespace Cajerro.DAL
         }
 
         /// <summary>
-        /// Obtiene la información de la red activa (SSID Wi-Fi, IPv4, Subred, Gateway, VPN) y escanea en paralelo
-        /// la red local en busca de otros bancos conectados (por UDP Broadcast 5005 y TCP Handshake 5000/5001).
+        /// Escanea la red activa (SSID Wi-Fi, IPv4, Subred, Gateway, VPN) en busca de todos los Cajeros (ATMs)
+        /// y Bancos conectados a la misma red o registrados contra la Base de Datos Maestra alojada en este equipo.
         /// </summary>
         public static async Task<ResultadoEscaneoRed> EscanearRedYDetectarBancosAsync(IGestorArchivos dal, int timeoutMs = 950)
         {
@@ -62,10 +65,12 @@ namespace Cajerro.DAL
 
             var resultado = ObtenerInformacionRedActual();
             var bancosRegistrados = dal.ObtenerBancosRed();
+            var cajerosRegistrados = dal.ObtenerCajerosRed();
+
             var bancoPropio = bancosRegistrados.FirstOrDefault(b => b.EsPropio) ?? new BancoRedInfo
             {
                 CodigoBanco = "BANC01",
-                NombreBanco = "NEXUSBANK (Nuestro Banco)",
+                NombreBanco = "NEXUSBANK (Nuestro Banco - BD Maestra)",
                 EsPropio = true,
                 Puerto = PuertoTcpInterbancario,
                 LimiteDiario = 25000m
@@ -74,10 +79,39 @@ namespace Cajerro.DAL
             bancoPropio.IP = resultado.IpLocal;
             bancoPropio.EnLinea = true;
 
-            var bancosDescubiertos = new ConcurrentDictionary<string, BancoRedInfo>(StringComparer.OrdinalIgnoreCase);
+            // Calcular efectivo local en bóveda para el cajero local ATM-01
+            decimal efectivoLocal = dal.ObtenerInventarioBilletes().Sum(x => (decimal)x.Denominacion * x.Cantidad);
+            if (efectivoLocal <= 0) efectivoLocal = 10000m;
 
-            // 1. Descubrimiento rápido por UDP Broadcast (Puerto 5005)
-            await EnviarBroadcastUdpYRecibirAsync(bancoPropio, resultado.IpLocal, bancosDescubiertos, 450);
+            var cajeroPropio = cajerosRegistrados.FirstOrDefault(c => c.EsLocal || c.CodigoCajero == "ATM-01") ?? new CajeroRedInfo
+            {
+                CodigoCajero = "ATM-01",
+                NombreCajero = "Cajero Central Zona 1 (Maestro Local)",
+                CodigoBanco = bancoPropio.CodigoBanco,
+                EsLocal = true
+            };
+            cajeroPropio.IP = resultado.IpLocal;
+            cajeroPropio.Puerto = PuertoTcpInterbancario;
+            cajeroPropio.EsLocal = true;
+            cajeroPropio.EnLinea = true;
+            cajeroPropio.EfectivoActual = efectivoLocal;
+            cajeroPropio.UltimaConexionBdMaestra = DateTime.Now;
+
+            var bancosDescubiertos = new ConcurrentDictionary<string, BancoRedInfo>(StringComparer.OrdinalIgnoreCase);
+            var cajerosDescubiertos = new ConcurrentDictionary<string, CajeroRedInfo>(StringComparer.OrdinalIgnoreCase);
+
+            // Incluir cajeros que ya se hayan conectado por TCP a nuestra BD Maestra recientemente (últimos 5 minutos)
+            foreach (var kv in _cajerosConectadosBdMaestra)
+            {
+                if ((DateTime.Now - kv.Value.UltimaConexionBdMaestra).TotalMinutes <= 5)
+                {
+                    kv.Value.EnLinea = true;
+                    cajerosDescubiertos[kv.Key] = kv.Value;
+                }
+            }
+
+            // 1. Descubrimiento rápido por UDP Broadcast (Puerto 5005) tanto de Bancos como de Cajeros
+            await EnviarBroadcastUdpYRecibirAsync(bancoPropio, cajeroPropio, resultado.IpLocal, bancosDescubiertos, cajerosDescubiertos, 450);
 
             // 2. Obtener hosts candidatos (tabla ARP + barrido rápido de la subred local /24)
             var ipsCandidatas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -110,36 +144,44 @@ namespace Cajerro.DAL
                 await Task.WhenAll(tareasSondeo);
             }
 
-            // 3. También incluir las IPs configuradas manualmente en BancosRed (si no son 127.0.0.1)
+            // 3. Incluir IPs configuradas manualmente en BancosRed y CajerosRed
             foreach (var b in bancosRegistrados.Where(x => !x.EsPropio))
             {
                 if (!string.IsNullOrWhiteSpace(b.IP) && b.IP != "127.0.0.1" && !EsIpPropia(b.IP, resultado.IpLocal))
-                {
                     ipsCandidatas.Add(b.IP);
-                }
+            }
+            foreach (var c in cajerosRegistrados.Where(x => !x.EsLocal))
+            {
+                if (!string.IsNullOrWhiteSpace(c.IP) && c.IP != "127.0.0.1" && !EsIpPropia(c.IP, resultado.IpLocal))
+                    ipsCandidatas.Add(c.IP);
             }
 
-            // 4. Consultar IB_PING por TCP a cada IP candidata en puertos 5000 y 5001
-            var tareasPingBancario = new List<Task>();
+            // 4. Consultar IB_PING por TCP a cada IP candidata en puertos 5000 y 5001 (detecta bancos y cajeros remotos)
+            var tareasPing = new List<Task>();
             foreach (var ip in ipsCandidatas)
             {
                 foreach (int puerto in new[] { 5000, 5001 })
                 {
-                    tareasPingBancario.Add(Task.Run(async () =>
+                    tareasPing.Add(Task.Run(async () =>
                     {
-                        var infoRemota = await ConsultarPingTcpBancoAsync(ip, puerto, bancoPropio.CodigoBanco, bancoPropio.NombreBanco, timeoutMs);
-                        if (infoRemota != null && !string.Equals(infoRemota.CodigoBanco, bancoPropio.CodigoBanco, StringComparison.OrdinalIgnoreCase))
+                        var (bancoRemoto, cajeroRemoto) = await ConsultarNodoRemotoTcpAsync(ip, puerto, bancoPropio.CodigoBanco, bancoPropio.NombreBanco, timeoutMs);
+                        if (bancoRemoto != null && !string.Equals(bancoRemoto.CodigoBanco, bancoPropio.CodigoBanco, StringComparison.OrdinalIgnoreCase))
                         {
-                            infoRemota.EnLinea = true;
-                            bancosDescubiertos[infoRemota.CodigoBanco] = infoRemota;
+                            bancoRemoto.EnLinea = true;
+                            bancosDescubiertos[bancoRemoto.CodigoBanco] = bancoRemoto;
+                        }
+                        if (cajeroRemoto != null && !string.Equals(cajeroRemoto.CodigoCajero, cajeroPropio.CodigoCajero, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cajeroRemoto.EnLinea = true;
+                            cajerosDescubiertos[cajeroRemoto.CodigoCajero] = cajeroRemoto;
                         }
                     }));
                 }
             }
 
-            await Task.WhenAll(tareasPingBancario);
+            await Task.WhenAll(tareasPing);
 
-            // 5. Sincronizar resultados con la lista de BancosRed
+            // 5. Sincronizar resultados con BancosRed
             foreach (var b in bancosRegistrados)
             {
                 if (b.EsPropio)
@@ -167,10 +209,52 @@ namespace Cajerro.DAL
                     bancosRegistrados.Add(kv.Value);
                 }
             }
-
             dal.GuardarBancosRed(bancosRegistrados);
 
+            // 6. Sincronizar resultados con CajerosRed
+            if (!cajerosRegistrados.Any(x => x.EsLocal || x.CodigoCajero == "ATM-01"))
+            {
+                cajerosRegistrados.Insert(0, cajeroPropio);
+            }
+
+            foreach (var c in cajerosRegistrados)
+            {
+                if (c.EsLocal || c.CodigoCajero == "ATM-01")
+                {
+                    c.IP = resultado.IpLocal;
+                    c.Puerto = PuertoTcpInterbancario;
+                    c.EsLocal = true;
+                    c.EnLinea = true;
+                    c.EfectivoActual = efectivoLocal;
+                    c.UltimaConexionBdMaestra = DateTime.Now;
+                }
+                else if (cajerosDescubiertos.TryGetValue(c.CodigoCajero, out var detCaj))
+                {
+                    c.IP = detCaj.IP;
+                    c.Puerto = detCaj.Puerto;
+                    c.CodigoBanco = string.IsNullOrWhiteSpace(detCaj.CodigoBanco) ? c.CodigoBanco : detCaj.CodigoBanco;
+                    c.NombreCajero = string.IsNullOrWhiteSpace(detCaj.NombreCajero) ? c.NombreCajero : detCaj.NombreCajero;
+                    c.EfectivoActual = detCaj.EfectivoActual > 0 ? detCaj.EfectivoActual : c.EfectivoActual;
+                    c.EnLinea = true;
+                    c.UltimaConexionBdMaestra = DateTime.Now;
+                }
+                else
+                {
+                    c.EnLinea = false;
+                }
+            }
+
+            foreach (var kv in cajerosDescubiertos)
+            {
+                if (!cajerosRegistrados.Any(x => string.Equals(x.CodigoCajero, kv.Key, StringComparison.OrdinalIgnoreCase)))
+                {
+                    cajerosRegistrados.Add(kv.Value);
+                }
+            }
+            dal.GuardarCajerosRed(cajerosRegistrados);
+
             resultado.BancosDetectados = bancosRegistrados.Where(x => !x.EsPropio && x.EnLinea).ToList();
+            resultado.CajerosDetectados = cajerosRegistrados.Where(x => x.EnLinea).ToList();
             resultado.FechaEscaneo = DateTime.Now;
             return resultado;
         }
@@ -331,7 +415,7 @@ namespace Cajerro.DAL
             }
         }
 
-        private static async Task<BancoRedInfo?> ConsultarPingTcpBancoAsync(
+        private static async Task<(BancoRedInfo? banco, CajeroRedInfo? cajero)> ConsultarNodoRemotoTcpAsync(
             string ip,
             int puerto,
             string codigoBancoOrigen,
@@ -343,17 +427,16 @@ namespace Cajerro.DAL
                 using var client = new TcpClient();
                 var connectTask = client.ConnectAsync(ip, puerto);
                 if (await Task.WhenAny(connectTask, Task.Delay(timeoutMs)) != connectTask || !client.Connected)
-                    return null;
+                    return (null, null);
 
                 using var stream = client.GetStream();
                 stream.ReadTimeout = timeoutMs;
                 stream.WriteTimeout = timeoutMs;
 
-                // Formato estándar compatible con Cajero.Servidor y con agentes LLM externos
                 var reqObj = new
                 {
                     tipo = "IB_PING",
-                    cajero = "SERVER",
+                    cajero = "ATM-01",
                     idMensaje = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(),
                     timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                     bancoOrigen = codigoBancoOrigen,
@@ -367,11 +450,11 @@ namespace Cajerro.DAL
                 using var reader = new StreamReader(stream, Encoding.UTF8);
                 var readTask = reader.ReadLineAsync();
                 if (await Task.WhenAny(readTask, Task.Delay(timeoutMs)) != readTask)
-                    return null;
+                    return (null, null);
 
                 string? linea = await readTask;
                 if (string.IsNullOrWhiteSpace(linea))
-                    return null;
+                    return (null, null);
 
                 using var doc = JsonDocument.Parse(linea);
                 var root = doc.RootElement;
@@ -389,35 +472,57 @@ namespace Cajerro.DAL
                         datosElem = JsonDocument.Parse(d2.GetString()!).RootElement;
                 }
 
-                string cod = ObtenerStringProp(datosElem, "codigoBanco", "CodigoBanco");
-                string nom = ObtenerStringProp(datosElem, "nombreBanco", "NombreBanco");
+                string codBanco = ObtenerStringProp(datosElem, "codigoBanco", "CodigoBanco");
+                string nomBanco = ObtenerStringProp(datosElem, "nombreBanco", "NombreBanco");
                 decimal disp = ObtenerDecimalProp(datosElem, 25000m, "cupoDisponibleHoy", "CupoDisponibleHoy", "cupoDisponibleBanco");
 
-                if (string.IsNullOrWhiteSpace(cod))
-                    return null;
+                string codCajero = ObtenerStringProp(datosElem, "codigoCajero", "CodigoCajero", "cajero");
+                string nomCajero = ObtenerStringProp(datosElem, "nombreCajero", "NombreCajero");
+                decimal efecCajero = ObtenerDecimalProp(datosElem, 10000m, "efectivoDisponible", "EfectivoActual");
 
-                return new BancoRedInfo
+                BancoRedInfo? banco = null;
+                if (!string.IsNullOrWhiteSpace(codBanco))
                 {
-                    CodigoBanco = cod,
-                    NombreBanco = string.IsNullOrWhiteSpace(nom) ? $"Banco {cod}" : nom,
+                    banco = new BancoRedInfo
+                    {
+                        CodigoBanco = codBanco,
+                        NombreBanco = string.IsNullOrWhiteSpace(nomBanco) ? $"Banco {codBanco}" : nomBanco,
+                        IP = ip,
+                        Puerto = puerto,
+                        EsPropio = false,
+                        EnLinea = true,
+                        LimiteDiario = Math.Max(25000m, disp),
+                        TransferidoHoy = Math.Max(0m, 25000m - disp)
+                    };
+                }
+
+                CajeroRedInfo? cajero = new CajeroRedInfo
+                {
+                    CodigoCajero = !string.IsNullOrWhiteSpace(codCajero) ? codCajero : $"ATM-{ip.Split('.').Last()}",
+                    NombreCajero = !string.IsNullOrWhiteSpace(nomCajero) ? nomCajero : $"Cajero en Red ({ip})",
+                    CodigoBanco = !string.IsNullOrWhiteSpace(codBanco) ? codBanco : "BANC01",
                     IP = ip,
                     Puerto = puerto,
-                    EsPropio = false,
+                    EsLocal = false,
                     EnLinea = true,
-                    LimiteDiario = Math.Max(25000m, disp),
-                    TransferidoHoy = Math.Max(0m, 25000m - disp)
+                    EfectivoActual = efecCajero,
+                    UltimaConexionBdMaestra = DateTime.Now
                 };
+
+                return (banco, cajero);
             }
             catch
             {
-                return null;
+                return (null, null);
             }
         }
 
         private static async Task EnviarBroadcastUdpYRecibirAsync(
             BancoRedInfo bancoPropio,
+            CajeroRedInfo cajeroPropio,
             string ipLocal,
-            ConcurrentDictionary<string, BancoRedInfo> descubiertos,
+            ConcurrentDictionary<string, BancoRedInfo> bancosDescubiertos,
+            ConcurrentDictionary<string, CajeroRedInfo> cajerosDescubiertos,
             int waitMs)
         {
             try
@@ -425,7 +530,7 @@ namespace Cajerro.DAL
                 using var udp = new UdpClient(0);
                 udp.EnableBroadcast = true;
 
-                string msg = $"DISCOVER_BANCO_ATM|{bancoPropio.CodigoBanco}|{bancoPropio.NombreBanco}|{ipLocal}|{bancoPropio.Puerto}";
+                string msg = $"DISCOVER_BANCO_ATM|{bancoPropio.CodigoBanco}|{bancoPropio.NombreBanco}|{ipLocal}|{bancoPropio.Puerto}|{cajeroPropio.CodigoCajero}";
                 byte[] data = Encoding.UTF8.GetBytes(msg);
 
                 await udp.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Broadcast, PuertoUdpDiscovery));
@@ -448,7 +553,11 @@ namespace Cajerro.DAL
 
                     var res = await recvTask;
                     string texto = Encoding.UTF8.GetString(res.Buffer).Trim();
-                    // Formato respuesta: HERE_BANCO_ATM|CodigoBanco|NombreBanco|IP|Puerto|LimiteDiario|TransferidoHoy
+                    string ipRemota = res.RemoteEndPoint.Address.ToString();
+
+                    if (EsIpPropia(ipRemota, ipLocal)) continue;
+
+                    // Respuesta de Banco: HERE_BANCO_ATM|CodigoBanco|NombreBanco|IP|Puerto|LimiteDiario|TransferidoHoy|CodigoCajero
                     if (texto.StartsWith("HERE_BANCO_ATM|", StringComparison.OrdinalIgnoreCase))
                     {
                         var partes = texto.Split('|');
@@ -456,18 +565,18 @@ namespace Cajerro.DAL
                         {
                             string cod = partes[1].Trim();
                             string nom = partes[2].Trim();
-                            string ip = res.RemoteEndPoint.Address.ToString();
                             int.TryParse(partes[4].Trim(), out int puerto);
                             decimal lim = partes.Length >= 6 && decimal.TryParse(partes[5], out var l) ? l : 25000m;
                             decimal trf = partes.Length >= 7 && decimal.TryParse(partes[6], out var t) ? t : 0m;
+                            string codCaj = partes.Length >= 8 ? partes[7].Trim() : $"ATM-{ipRemota.Split('.').Last()}";
 
                             if (!string.Equals(cod, bancoPropio.CodigoBanco, StringComparison.OrdinalIgnoreCase))
                             {
-                                descubiertos[cod] = new BancoRedInfo
+                                bancosDescubiertos[cod] = new BancoRedInfo
                                 {
                                     CodigoBanco = cod,
                                     NombreBanco = nom,
-                                    IP = ip,
+                                    IP = ipRemota,
                                     Puerto = puerto > 0 ? puerto : PuertoTcpInterbancario,
                                     EsPropio = false,
                                     EnLinea = true,
@@ -475,6 +584,45 @@ namespace Cajerro.DAL
                                     TransferidoHoy = trf
                                 };
                             }
+
+                            cajerosDescubiertos[codCaj] = new CajeroRedInfo
+                            {
+                                CodigoCajero = codCaj,
+                                NombreCajero = $"Cajero Remoto ({nom})",
+                                CodigoBanco = cod,
+                                IP = ipRemota,
+                                Puerto = puerto > 0 ? puerto : PuertoTcpInterbancario,
+                                EsLocal = false,
+                                EnLinea = true,
+                                EfectivoActual = 10000m,
+                                UltimaConexionBdMaestra = DateTime.Now
+                            };
+                        }
+                    }
+                    // Respuesta de Cajero: HERE_CAJERO_ATM|CodigoCajero|NombreCajero|CodigoBanco|IP|Puerto|Efectivo
+                    else if (texto.StartsWith("HERE_CAJERO_ATM|", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var partes = texto.Split('|');
+                        if (partes.Length >= 4)
+                        {
+                            string codCaj = partes[1].Trim();
+                            string nomCaj = partes[2].Trim();
+                            string codBan = partes[3].Trim();
+                            int puerto = partes.Length >= 6 && int.TryParse(partes[5], out var p) ? p : PuertoTcpInterbancario;
+                            decimal efec = partes.Length >= 7 && decimal.TryParse(partes[6], out var ef) ? ef : 10000m;
+
+                            cajerosDescubiertos[codCaj] = new CajeroRedInfo
+                            {
+                                CodigoCajero = codCaj,
+                                NombreCajero = nomCaj,
+                                CodigoBanco = codBan,
+                                IP = ipRemota,
+                                Puerto = puerto,
+                                EsLocal = false,
+                                EnLinea = true,
+                                EfectivoActual = efec,
+                                UltimaConexionBdMaestra = DateTime.Now
+                            };
                         }
                     }
                 }
@@ -493,21 +641,81 @@ namespace Cajerro.DAL
                 {
                     var recibido = await _udpListener.ReceiveAsync(token);
                     string msg = Encoding.UTF8.GetString(recibido.Buffer).Trim();
+                    string ipRemota = recibido.RemoteEndPoint.Address.ToString();
 
-                    if (msg.StartsWith("DISCOVER_BANCO_ATM|", StringComparison.OrdinalIgnoreCase))
+                    var infoRed = ObtenerInformacionRedActual();
+                    var propio = dal.ObtenerBancosRed().FirstOrDefault(b => b.EsPropio);
+
+                    if (msg.StartsWith("DISCOVER_BANCO_ATM|", StringComparison.OrdinalIgnoreCase) ||
+                        msg.StartsWith("DISCOVER_CAJERO_ATM|", StringComparison.OrdinalIgnoreCase))
                     {
-                        var infoRed = ObtenerInformacionRedActual();
-                        var propio = dal.ObtenerBancosRed().FirstOrDefault(b => b.EsPropio);
+                        // Si el mensaje trae datos de un cajero remoto, registrarlo automáticamente en la BD Maestra
+                        var p = msg.Split('|');
+                        if (p.Length >= 3 && !EsIpPropia(ipRemota, infoRed.IpLocal))
+                        {
+                            string codCajRem = p.Length >= 6 ? p[5].Trim() : p[1].Trim();
+                            string nomRem = p[2].Trim();
+                            RegistrarLatidoCajeroRemoto(dal, codCajRem, nomRem, p[1].Trim(), ipRemota, PuertoTcpInterbancario, 10000m);
+                        }
+
                         if (propio != null)
                         {
-                            string resp = $"HERE_BANCO_ATM|{propio.CodigoBanco}|{propio.NombreBanco}|{infoRed.IpLocal}|{propio.Puerto}|{propio.LimiteDiario}|{propio.TransferidoHoy}";
-                            byte[] bytes = Encoding.UTF8.GetBytes(resp);
-                            await _udpListener.SendAsync(bytes, bytes.Length, recibido.RemoteEndPoint);
+                            string respBanco = $"HERE_BANCO_ATM|{propio.CodigoBanco}|{propio.NombreBanco}|{infoRed.IpLocal}|{propio.Puerto}|{propio.LimiteDiario}|{propio.TransferidoHoy}|ATM-01";
+                            byte[] bytes1 = Encoding.UTF8.GetBytes(respBanco);
+                            await _udpListener.SendAsync(bytes1, bytes1.Length, recibido.RemoteEndPoint);
+
+                            decimal efec = dal.ObtenerInventarioBilletes().Sum(x => (decimal)x.Denominacion * x.Cantidad);
+                            string respCajero = $"HERE_CAJERO_ATM|ATM-01|Cajero Central BD Maestra ({infoRed.IpLocal})|{propio.CodigoBanco}|{infoRed.IpLocal}|{propio.Puerto}|{efec:F2}";
+                            byte[] bytes2 = Encoding.UTF8.GetBytes(respCajero);
+                            await _udpListener.SendAsync(bytes2, bytes2.Length, recibido.RemoteEndPoint);
                         }
                     }
                 }
             }
             catch { }
+        }
+
+        private static void RegistrarLatidoCajeroRemoto(
+            IGestorArchivos dal,
+            string codigoCajero,
+            string nombreCajero,
+            string codigoBanco,
+            string ip,
+            int puerto,
+            decimal efectivo)
+        {
+            if (string.IsNullOrWhiteSpace(codigoCajero) || codigoCajero == "SERVER")
+                codigoCajero = $"ATM-{ip.Split('.').Last()}";
+
+            var info = new CajeroRedInfo
+            {
+                CodigoCajero = codigoCajero,
+                NombreCajero = string.IsNullOrWhiteSpace(nombreCajero) ? $"Cajero en Red ({ip})" : nombreCajero,
+                CodigoBanco = string.IsNullOrWhiteSpace(codigoBanco) ? "BANC01" : codigoBanco,
+                IP = ip,
+                Puerto = puerto > 0 ? puerto : PuertoTcpInterbancario,
+                EsLocal = false,
+                EnLinea = true,
+                EfectivoActual = efectivo > 0 ? efectivo : 10000m,
+                UltimaConexionBdMaestra = DateTime.Now
+            };
+
+            _cajerosConectadosBdMaestra[codigoCajero] = info;
+
+            var cajeros = dal.ObtenerCajerosRed();
+            var existente = cajeros.FirstOrDefault(c => string.Equals(c.CodigoCajero, codigoCajero, StringComparison.OrdinalIgnoreCase));
+            if (existente != null)
+            {
+                existente.IP = ip;
+                existente.EnLinea = true;
+                existente.UltimaConexionBdMaestra = DateTime.Now;
+                if (efectivo > 0) existente.EfectivoActual = efectivo;
+            }
+            else
+            {
+                cajeros.Add(info);
+            }
+            dal.GuardarCajerosRed(cajeros);
         }
 
         private static async Task EscucharTcpInterbancarioLoopAsync(IGestorArchivos dal, CancellationToken token)
@@ -520,185 +728,334 @@ namespace Cajerro.DAL
                 while (!token.IsCancellationRequested)
                 {
                     var client = await _tcpListener.AcceptTcpClientAsync(token);
-                    _ = Task.Run(() => AtenderClienteTcpInterbancarioAsync(client, dal), token);
+                    _ = Task.Run(() => AtenderClienteTcpBdMaestraAsync(client, dal), token);
                 }
             }
             catch { }
         }
 
-        private static async Task AtenderClienteTcpInterbancarioAsync(TcpClient client, IGestorArchivos dal)
+        /// <summary>
+        /// Atiende las conexiones entrantes al Puerto TCP 5000 de este equipo (Servidor de Base de Datos Maestra).
+        /// Soporta tanto Cajeros Remotos (CONECTAR, HEARTBEAT, CONSULTAR_SALDO, RETIRAR, DEPOSITAR, VERIFICAR_CUENTA, TRANSFERIR)
+        /// como Bancos Remotos (IB_PING, IB_VERIFICAR_CUENTA, IB_TRANSFERIR, DB_QUERY_*).
+        /// </summary>
+        private static async Task AtenderClienteTcpBdMaestraAsync(TcpClient client, IGestorArchivos dal)
         {
             using (client)
             {
                 try
                 {
+                    string ipCliente = (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "127.0.0.1";
                     using var stream = client.GetStream();
                     using var reader = new StreamReader(stream, Encoding.UTF8);
-                    string? linea = await reader.ReadLineAsync();
-                    if (string.IsNullOrWhiteSpace(linea)) return;
+                    using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
 
-                    using var doc = JsonDocument.Parse(linea);
-                    var root = doc.RootElement;
-                    string idMsg = ObtenerStringProp(root, "idMensaje", "IdMensaje");
-                    string tipo = ObtenerStringProp(root, "tipo", "Tipo");
-
-                    var bancos = dal.ObtenerBancosRed();
-                    var propio = bancos.FirstOrDefault(b => b.EsPropio) ?? new BancoRedInfo
+                    // Soportar múltiples peticiones en la misma conexión TCP (para Cajeros persistentes) o una sola petición por conexión
+                    string? linea;
+                    while ((linea = await reader.ReadLineAsync()) != null)
                     {
-                        CodigoBanco = "BANC01",
-                        NombreBanco = "NEXUSBANK (Nuestro Banco)",
-                        EsPropio = true,
-                        LimiteDiario = 25000m
-                    };
+                        if (string.IsNullOrWhiteSpace(linea)) continue;
 
-                    if (string.Equals(tipo, "IB_PING", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var resp = new
+                        using var doc = JsonDocument.Parse(linea);
+                        var root = doc.RootElement;
+                        string idMsg = ObtenerStringProp(root, "idMensaje", "IdMensaje");
+                        string tipo = ObtenerStringProp(root, "tipo", "Tipo");
+                        string cajeroId = ObtenerStringProp(root, "cajero", "CajeroId", "codigoCajero");
+                        string bancoOrig = ObtenerStringProp(root, "bancoOrigen", "BancoOrigen", "codigoBanco");
+                        string nombreCaj = ObtenerStringProp(root, "nombreCajero", "Nombre", "ubicacion");
+                        decimal efecCaj = ObtenerDecimalProp(root, 10000m, "efectivoTotal", "efectivoDisponible");
+
+                        // Registrar el cajero remoto como activo en la BD Maestra alojada en este equipo
+                        var infoRed = ObtenerInformacionRedActual();
+                        if (!EsIpPropia(ipCliente, infoRed.IpLocal))
                         {
-                            tipo = "RESP_OK",
-                            idMensaje = idMsg,
-                            codigo = "00",
-                            mensaje = $"Banco {propio.CodigoBanco} ({propio.NombreBanco}) en línea",
-                            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                            datos = new
-                            {
-                                codigoBanco = propio.CodigoBanco,
-                                nombreBanco = propio.NombreBanco,
-                                cupoDisponibleHoy = propio.DisponibleHoy,
-                                estado = "EN_LINEA"
-                            }
+                            RegistrarLatidoCajeroRemoto(dal, cajeroId, nombreCaj, bancoOrig, ipCliente, PuertoTcpInterbancario, efecCaj);
+                        }
+
+                        var bancos = dal.ObtenerBancosRed();
+                        var propio = bancos.FirstOrDefault(b => b.EsPropio) ?? new BancoRedInfo
+                        {
+                            CodigoBanco = "BANC01",
+                            NombreBanco = "NEXUSBANK (BD Maestra)",
+                            EsPropio = true,
+                            LimiteDiario = 25000m
                         };
-                        await EnviarJsonLineaAsync(stream, resp);
-                    }
-                    else if (string.Equals(tipo, "IB_VERIFICAR_CUENTA", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string cuenta = ObtenerStringProp(root, "numeroCuenta", "cuentaDestino", "CuentaDestino");
-                        var usuario = dal.ObtenerUsuarioPorTarjeta(cuenta);
 
-                        var resp = new
+                        if (string.Equals(tipo, "IB_PING", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(tipo, "CONECTAR", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(tipo, "HEARTBEAT", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(tipo, "ATM_PING", StringComparison.OrdinalIgnoreCase))
                         {
-                            tipo = "RESP_OK",
-                            idMensaje = idMsg,
-                            codigo = usuario != null ? "00" : "14",
-                            mensaje = usuario != null ? "Cuenta verificada en el banco destino." : "La cuenta no existe en este banco.",
-                            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                            datos = new
-                            {
-                                existe = usuario != null,
-                                codigoBanco = propio.CodigoBanco,
-                                nombreBanco = propio.NombreBanco,
-                                numeroCuenta = usuario?.NumeroTarjeta ?? cuenta,
-                                nombreTitular = usuario?.Nombre ?? "",
-                                cupoDisponibleBanco = propio.DisponibleHoy
-                            }
-                        };
-                        await EnviarJsonLineaAsync(stream, resp);
-                    }
-                    else if (string.Equals(tipo, "IB_TRANSFERIR", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string tokenTrf = ObtenerStringProp(root, "tokenTransferencia", "TokenTransferencia");
-                        string bancoOrigen = ObtenerStringProp(root, "bancoOrigen", "BancoOrigen");
-                        string cuentaOrigen = ObtenerStringProp(root, "cuentaOrigen", "CuentaOrigen");
-                        string nombreOrigen = ObtenerStringProp(root, "nombreOrigen", "NombreOrigen");
-                        string cuentaDestino = ObtenerStringProp(root, "cuentaDestino", "CuentaDestino");
-                        string concepto = ObtenerStringProp(root, "concepto", "Concepto");
-                        decimal monto = ObtenerDecimalProp(root, 0m, "monto", "Monto");
-
-                        var usuarioDest = dal.ObtenerUsuarioPorTarjeta(cuentaDestino);
-                        if (usuarioDest == null)
-                        {
-                            await EnviarJsonLineaAsync(stream, new
+                            decimal efecLocal = dal.ObtenerInventarioBilletes().Sum(x => (decimal)x.Denominacion * x.Cantidad);
+                            var resp = new
                             {
                                 tipo = "RESP_OK",
                                 idMensaje = idMsg,
-                                codigo = "14",
-                                mensaje = "La cuenta destino no existe en este banco.",
-                                timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-                            });
-                            return;
+                                codigo = "00",
+                                mensaje = $"Conectado a BD Maestra en {infoRed.IpLocal}:5000 ({propio.CodigoBanco} - {propio.NombreBanco})",
+                                timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                                datos = new
+                                {
+                                    codigoBanco = propio.CodigoBanco,
+                                    nombreBanco = propio.NombreBanco,
+                                    codigoCajero = "ATM-01",
+                                    nombreCajero = "Cajero Central BD Maestra",
+                                    bdMaestraIp = infoRed.IpLocal,
+                                    bdMaestraSql = @"localhost\SQLEXPRESS (BD_CajeroRed)",
+                                    efectivoDisponible = efecLocal,
+                                    cupoDisponibleHoy = propio.DisponibleHoy,
+                                    estado = "EN_LINEA"
+                                }
+                            };
+                            await writer.WriteLineAsync(JsonSerializer.Serialize(resp));
                         }
-
-                        if (monto <= 0 || monto > propio.DisponibleHoy)
+                        else if (string.Equals(tipo, "CONSULTAR_SALDO", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(tipo, "VALIDAR_TARJETA", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(tipo, "AUTENTICAR_PIN", StringComparison.OrdinalIgnoreCase))
                         {
-                            await EnviarJsonLineaAsync(stream, new
+                            string tarj = ObtenerStringProp(root, "numeroTarjeta", "NumeroTarjeta", "tarjeta", "cuenta");
+                            string pin = ObtenerStringProp(root, "pin", "PIN", "pinHash");
+                            var u = dal.ObtenerUsuarioPorTarjeta(tarj);
+
+                            if (u == null)
+                            {
+                                await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                                {
+                                    tipo = "RESP_OK",
+                                    idMensaje = idMsg,
+                                    codigo = "14",
+                                    mensaje = "Tarjeta o cuenta no encontrada en la BD Maestra."
+                                }));
+                                continue;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(pin) && u.PIN != pin)
+                            {
+                                await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                                {
+                                    tipo = "RESP_OK",
+                                    idMensaje = idMsg,
+                                    codigo = "55",
+                                    mensaje = "PIN incorrecto en la BD Maestra."
+                                }));
+                                continue;
+                            }
+
+                            await writer.WriteLineAsync(JsonSerializer.Serialize(new
                             {
                                 tipo = "RESP_OK",
                                 idMensaje = idMsg,
-                                codigo = "65",
-                                mensaje = $"El monto excede el límite diario disponible del banco destino (Disp: Q {propio.DisponibleHoy:N2}).",
-                                timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-                            });
-                            return;
+                                codigo = "00",
+                                mensaje = "Consulta exitosa en BD Maestra.",
+                                datos = new
+                                {
+                                    numeroTarjeta = u.NumeroTarjeta,
+                                    nombre = u.Nombre,
+                                    saldoActual = u.SaldoActual,
+                                    limiteDiario = u.LimiteDiario,
+                                    estado = "Activo"
+                                }
+                            }));
                         }
-
-                        // Acreditar al usuario local, descontar cupo de ambos bancos y guardar el TokenTransferencia
-                        usuarioDest.SaldoActual += monto;
-                        dal.ActualizarUsuario(usuarioDest);
-
-                        propio.TransferidoHoy += monto;
-                        var bOrig = bancos.FirstOrDefault(b => string.Equals(b.CodigoBanco, bancoOrigen, StringComparison.OrdinalIgnoreCase));
-                        if (bOrig != null)
+                        else if (string.Equals(tipo, "IB_VERIFICAR_CUENTA", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(tipo, "VERIFICAR_CUENTA", StringComparison.OrdinalIgnoreCase))
                         {
-                            bOrig.TransferidoHoy += monto;
-                        }
-                        dal.GuardarBancosRed(bancos);
+                            string cuenta = ObtenerStringProp(root, "numeroCuenta", "cuentaDestino", "CuentaDestino");
+                            string codBancoDest = ObtenerStringProp(root, "bancoDestino", "BancoDestino", "codigoBancoDestino");
 
-                        if (string.IsNullOrWhiteSpace(tokenTrf))
-                            tokenTrf = $"TRF-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
-
-                        dal.RegistrarTransaccion(new Transaccion(
-                            usuarioDest.NumeroTarjeta,
-                            DateTime.Now,
-                            $"Transferencia Recibida ({bancoOrigen} Cta:{cuentaOrigen})",
-                            monto,
-                            tokenTrf));
-
-                        dal.RegistrarTransferenciaCompartida(new RegistroTransferenciaBancaria
-                        {
-                            TokenTransferencia = tokenTrf,
-                            FechaHora = DateTime.Now,
-                            TipoTransferencia = "INTERBANCARIA",
-                            BancoOrigen = bancoOrigen,
-                            CuentaOrigen = cuentaOrigen,
-                            NombreOrigen = nombreOrigen,
-                            BancoDestino = propio.CodigoBanco,
-                            CuentaDestino = usuarioDest.NumeroTarjeta,
-                            NombreDestino = usuarioDest.Nombre,
-                            Monto = monto,
-                            Concepto = concepto,
-                            CupoRestanteBancoOrigen = bOrig?.DisponibleHoy ?? propio.DisponibleHoy,
-                            CupoRestanteBancoDestino = propio.DisponibleHoy,
-                            Estado = "APROBADA"
-                        });
-
-                        await EnviarJsonLineaAsync(stream, new
-                        {
-                            tipo = "RESP_OK",
-                            idMensaje = idMsg,
-                            codigo = "00",
-                            mensaje = "Transferencia interbancaria acreditada y token registrado.",
-                            timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                            datos = new
+                            // Buscar primero en usuarios locales de la BD Maestra y luego en CuentasExternas de la BD Maestra
+                            var usuario = dal.ObtenerUsuarioPorTarjeta(cuenta);
+                            if (usuario != null && (string.IsNullOrWhiteSpace(codBancoDest) || string.Equals(codBancoDest, propio.CodigoBanco, StringComparison.OrdinalIgnoreCase)))
                             {
-                                tokenTransferencia = tokenTrf,
-                                bancoDestino = propio.CodigoBanco,
-                                cuentaDestino = usuarioDest.NumeroTarjeta,
-                                nombreDestino = usuarioDest.Nombre,
-                                monto = monto,
-                                cupoRestanteBancoDestino = propio.DisponibleHoy
+                                await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                                {
+                                    tipo = "RESP_OK",
+                                    idMensaje = idMsg,
+                                    codigo = "00",
+                                    mensaje = "Cuenta verificada en la BD Maestra.",
+                                    timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                                    datos = new
+                                    {
+                                        existe = true,
+                                        codigoBanco = propio.CodigoBanco,
+                                        nombreBanco = propio.NombreBanco,
+                                        numeroCuenta = usuario.NumeroTarjeta,
+                                        nombreTitular = usuario.Nombre,
+                                        cupoDisponibleBanco = propio.DisponibleHoy,
+                                        cupoDisponibleBancoOrigen = propio.DisponibleHoy
+                                    }
+                                }));
                             }
-                        });
+                            else
+                            {
+                                var ctaExt = dal.ObtenerCuentasExternas(string.IsNullOrWhiteSpace(codBancoDest) ? null : codBancoDest)
+                                    .FirstOrDefault(c => c.Activa && string.Equals(c.NumeroCuenta, cuenta, StringComparison.OrdinalIgnoreCase));
+
+                                var bDest = bancos.FirstOrDefault(b => string.Equals(b.CodigoBanco, ctaExt?.CodigoBanco ?? codBancoDest, StringComparison.OrdinalIgnoreCase));
+
+                                await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                                {
+                                    tipo = "RESP_OK",
+                                    idMensaje = idMsg,
+                                    codigo = ctaExt != null ? "00" : "14",
+                                    mensaje = ctaExt != null ? "Cuenta verificada en BD Maestra." : "La cuenta no existe en el banco seleccionado.",
+                                    timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                                    datos = new
+                                    {
+                                        existe = ctaExt != null,
+                                        codigoBanco = ctaExt?.CodigoBanco ?? codBancoDest,
+                                        nombreBanco = bDest?.NombreBanco ?? $"Banco {codBancoDest}",
+                                        numeroCuenta = ctaExt?.NumeroCuenta ?? cuenta,
+                                        nombreTitular = ctaExt?.NombreTitular ?? "",
+                                        cupoDisponibleBanco = bDest?.DisponibleHoy ?? 25000m,
+                                        cupoDisponibleBancoOrigen = propio.DisponibleHoy
+                                    }
+                                }));
+                            }
+                        }
+                        else if (string.Equals(tipo, "IB_TRANSFERIR", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(tipo, "TRANSFERIR", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string tokenTrf = ObtenerStringProp(root, "tokenTransferencia", "TokenTransferencia");
+                            string bancoOrigen = ObtenerStringProp(root, "bancoOrigen", "BancoOrigen");
+                            if (string.IsNullOrWhiteSpace(bancoOrigen)) bancoOrigen = propio.CodigoBanco;
+
+                            string bancoDestino = ObtenerStringProp(root, "bancoDestino", "BancoDestino", "codigoBancoDestino");
+                            if (string.IsNullOrWhiteSpace(bancoDestino)) bancoDestino = propio.CodigoBanco;
+
+                            string cuentaOrigen = ObtenerStringProp(root, "cuentaOrigen", "CuentaOrigen", "numeroTarjetaOrigen");
+                            string nombreOrigen = ObtenerStringProp(root, "nombreOrigen", "NombreOrigen");
+                            string cuentaDestino = ObtenerStringProp(root, "cuentaDestino", "CuentaDestino");
+                            string concepto = ObtenerStringProp(root, "concepto", "Concepto");
+                            decimal monto = ObtenerDecimalProp(root, 0m, "monto", "Monto");
+
+                            if (string.IsNullOrWhiteSpace(tokenTrf))
+                                tokenTrf = $"TRF-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
+
+                            var bOrig = bancos.FirstOrDefault(b => string.Equals(b.CodigoBanco, bancoOrigen, StringComparison.OrdinalIgnoreCase)) ?? propio;
+                            var bDest = bancos.FirstOrDefault(b => string.Equals(b.CodigoBanco, bancoDestino, StringComparison.OrdinalIgnoreCase)) ?? propio;
+
+                            if (monto <= 0 || monto > bOrig.DisponibleHoy || monto > bDest.DisponibleHoy)
+                            {
+                                await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                                {
+                                    tipo = "RESP_OK",
+                                    idMensaje = idMsg,
+                                    codigo = "65",
+                                    mensaje = $"El monto excede el límite diario disponible de los bancos en la BD Maestra.",
+                                    timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                                }));
+                                continue;
+                            }
+
+                            var usrOrig = dal.ObtenerUsuarioPorTarjeta(cuentaOrigen);
+                            if (usrOrig != null)
+                            {
+                                if (usrOrig.SaldoActual < monto)
+                                {
+                                    await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                                    {
+                                        tipo = "RESP_OK",
+                                        idMensaje = idMsg,
+                                        codigo = "51",
+                                        mensaje = "Fondos insuficientes en la cuenta origen en BD Maestra."
+                                    }));
+                                    continue;
+                                }
+                                usrOrig.SaldoActual -= monto;
+                                dal.ActualizarUsuario(usrOrig);
+                                nombreOrigen = usrOrig.Nombre;
+                                dal.RegistrarTransaccion(new Transaccion(usrOrig.NumeroTarjeta, DateTime.Now, $"Transf. a {bancoDestino} ({cuentaDestino})", monto, tokenTrf));
+                            }
+
+                            string nombreDestinoFinal = ObtenerStringProp(root, "nombreDestino", "NombreDestino");
+                            var usrDest = dal.ObtenerUsuarioPorTarjeta(cuentaDestino);
+                            if (usrDest != null)
+                            {
+                                usrDest.SaldoActual += monto;
+                                dal.ActualizarUsuario(usrDest);
+                                nombreDestinoFinal = usrDest.Nombre;
+                                dal.RegistrarTransaccion(new Transaccion(usrDest.NumeroTarjeta, DateTime.Now, $"Transf. de {bancoOrigen} ({cuentaOrigen})", monto, tokenTrf));
+                            }
+                            else
+                            {
+                                var ctaExt = dal.ObtenerCuentasExternas(bancoDestino)
+                                    .FirstOrDefault(c => string.Equals(c.NumeroCuenta, cuentaDestino, StringComparison.OrdinalIgnoreCase));
+                                if (ctaExt != null)
+                                {
+                                    ctaExt.SaldoActual += monto;
+                                    dal.GuardarCuentaExterna(ctaExt);
+                                    nombreDestinoFinal = ctaExt.NombreTitular;
+                                }
+                            }
+
+                            // Restar monto al límite de los dos bancos coordinadamente en la BD Maestra
+                            if (!string.Equals(bOrig.CodigoBanco, bDest.CodigoBanco, StringComparison.OrdinalIgnoreCase))
+                            {
+                                bOrig.TransferidoHoy += monto;
+                                bDest.TransferidoHoy += monto;
+                                dal.GuardarBancosRed(bancos);
+                            }
+
+                            dal.RegistrarTransferenciaCompartida(new RegistroTransferenciaBancaria
+                            {
+                                TokenTransferencia = tokenTrf,
+                                FechaHora = DateTime.Now,
+                                TipoTransferencia = string.Equals(bOrig.CodigoBanco, bDest.CodigoBanco, StringComparison.OrdinalIgnoreCase) ? "INTERNA" : "INTERBANCARIA",
+                                BancoOrigen = bOrig.CodigoBanco,
+                                CuentaOrigen = cuentaOrigen,
+                                NombreOrigen = string.IsNullOrWhiteSpace(nombreOrigen) ? "Cliente Remito" : nombreOrigen,
+                                BancoDestino = bDest.CodigoBanco,
+                                CuentaDestino = cuentaDestino,
+                                NombreDestino = string.IsNullOrWhiteSpace(nombreDestinoFinal) ? "Beneficiario" : nombreDestinoFinal,
+                                Monto = monto,
+                                Concepto = concepto,
+                                CupoRestanteBancoOrigen = bOrig.DisponibleHoy,
+                                CupoRestanteBancoDestino = bDest.DisponibleHoy,
+                                Estado = "APROBADA"
+                            });
+
+                            await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                            {
+                                tipo = "RESP_OK",
+                                idMensaje = idMsg,
+                                codigo = "00",
+                                mensaje = "Transferencia procesada en BD Maestra y Token registrado en ambos bancos y usuario.",
+                                timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                                datos = new
+                                {
+                                    tokenTransferencia = tokenTrf,
+                                    bancoOrigen = bOrig.CodigoBanco,
+                                    bancoDestino = bDest.CodigoBanco,
+                                    cuentaDestino = cuentaDestino,
+                                    nombreDestino = nombreDestinoFinal,
+                                    monto = monto,
+                                    nuevoSaldo = usrOrig?.SaldoActual ?? 0m,
+                                    cupoRestanteBancoOrigen = bOrig.DisponibleHoy,
+                                    cupoRestanteBancoDestino = bDest.DisponibleHoy
+                                }
+                            }));
+                        }
+                        else if (string.Equals(tipo, "DB_QUERY_ESTADO", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await writer.WriteLineAsync(JsonSerializer.Serialize(new
+                            {
+                                tipo = "RESP_OK",
+                                idMensaje = idMsg,
+                                codigo = "00",
+                                mensaje = "Catálogo completo desde la BD Maestra.",
+                                datos = new
+                                {
+                                    bancos = dal.ObtenerBancosRed(),
+                                    cajeros = dal.ObtenerCajerosRed(),
+                                    transferencias = dal.ObtenerTransferenciasCompartidas().Take(25)
+                                }
+                            }));
+                        }
                     }
                 }
                 catch { }
             }
-        }
-
-        private static async Task EnviarJsonLineaAsync(NetworkStream stream, object obj)
-        {
-            byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj) + "\n");
-            await stream.WriteAsync(bytes, 0, bytes.Length);
-            await stream.FlushAsync();
         }
 
         private static string ObtenerStringProp(JsonElement elem, params string[] nombres)
