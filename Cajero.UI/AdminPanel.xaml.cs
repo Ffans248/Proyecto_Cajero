@@ -765,6 +765,149 @@ namespace Cajero.UI
 
         #region =================== 6. RED INTERBANCARIA Y TOKENS ===================
 
+        private void BtnAgregarConectarCajero_Click(object sender, RoutedEventArgs e)
+        {
+            var infoRed = DescubridorRedBancaria.ObtenerInformacionRedActual();
+            var cajerosActuales = _dal.ObtenerCajerosRed();
+            int sigNum = cajerosActuales.Count + 1;
+
+            var win = new Window
+            {
+                Title = "Conectar / Registrar Nuevo Cajero en la BD Maestra",
+                Width = 480,
+                Height = 430,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = (System.Windows.Media.Brush)FindResource("BgPrimaryBrush")
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(22) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Conectar Nuevo Cajero a la BD Maestra",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = (System.Windows.Media.Brush)FindResource("TextPrimaryBrush"),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"BD Maestra alojada en este equipo: {infoRed.IpLocal}:5000",
+                FontSize = 12,
+                Foreground = (System.Windows.Media.Brush)FindResource("AccentPrimaryBrush"),
+                Margin = new Thickness(0, 0, 0, 14)
+            });
+
+            TextBox CrearCampo(string etiqueta, string valorInicial)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = etiqueta,
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
+                    Margin = new Thickness(0, 0, 0, 4)
+                });
+                var tb = new TextBox
+                {
+                    Text = valorInicial,
+                    Height = 34,
+                    FontSize = 13.5,
+                    Margin = new Thickness(0, 0, 0, 10),
+                    Padding = new Thickness(8, 4, 8, 4)
+                };
+                stack.Children.Add(tb);
+                return tb;
+            }
+
+            var txtCodigo = CrearCampo("Código del Cajero (ej. ATM-02, ATM-06):", $"ATM-{sigNum:D2}");
+            var txtNombre = CrearCampo("Nombre / Ubicación del Cajero:", $"Cajero Remoto Sucursal {sigNum}");
+            var txtBanco = CrearCampo("Código del Banco al que pertenece (ej. BANC01, BANC02):", "BANC01");
+            var txtIp = CrearCampo("IP del Cajero en la Red (Wi-Fi / LAN / Radmin VPN):", infoRed.IpLocal);
+
+            var pnlBotones = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+
+            var btnCancelar = new Button
+            {
+                Content = "Cancelar",
+                Style = (Style)FindResource("OutlineButton"),
+                Width = 110,
+                Height = 36,
+                Margin = new Thickness(0, 0, 10, 0)
+            };
+            btnCancelar.Click += (s, ev) => win.Close();
+
+            var btnGuardar = new Button
+            {
+                Content = "Conectar a BD Maestra",
+                Style = (Style)FindResource("SuccessButton"),
+                Width = 180,
+                Height = 36
+            };
+            btnGuardar.Click += (s, ev) =>
+            {
+                string cod = txtCodigo.Text.Trim().ToUpperInvariant();
+                string nom = txtNombre.Text.Trim();
+                string ban = txtBanco.Text.Trim().ToUpperInvariant();
+                string ip = txtIp.Text.Trim();
+
+                if (string.IsNullOrWhiteSpace(cod) || string.IsNullOrWhiteSpace(ip))
+                {
+                    CustomMessageBox.Show("Complete el código del cajero y su dirección IP.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var lista = _dal.ObtenerCajerosRed();
+                var existente = lista.FirstOrDefault(c => string.Equals(c.CodigoCajero, cod, StringComparison.OrdinalIgnoreCase));
+                if (existente != null)
+                {
+                    existente.NombreCajero = string.IsNullOrWhiteSpace(nom) ? existente.NombreCajero : nom;
+                    existente.CodigoBanco = string.IsNullOrWhiteSpace(ban) ? "BANC01" : ban;
+                    existente.IP = ip;
+                    existente.EnLinea = true;
+                    existente.UltimaConexionBdMaestra = DateTime.Now;
+                }
+                else
+                {
+                    lista.Add(new CajeroRedInfo
+                    {
+                        CodigoCajero = cod,
+                        NombreCajero = string.IsNullOrWhiteSpace(nom) ? $"Cajero {cod}" : nom,
+                        CodigoBanco = string.IsNullOrWhiteSpace(ban) ? "BANC01" : ban,
+                        IP = ip,
+                        Puerto = 5000,
+                        EsLocal = false,
+                        EnLinea = true,
+                        EfectivoActual = 10000m,
+                        UltimaConexionBdMaestra = DateTime.Now
+                    });
+                }
+
+                _dal.GuardarCajerosRed(lista);
+                _dal.RegistrarEnBitacora("Conexión Cajero", cod, $"Cajero {cod} ({nom}) conectado a la BD Maestra desde IP {ip}.");
+                CargarRedInterbancaria();
+                win.Close();
+                CustomMessageBox.Show(
+                    $"¡El cajero {cod} ({nom}) en la IP {ip} ha sido registrado y conectado exitosamente a la Base de Datos Maestra!",
+                    "Cajero Conectado",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            };
+
+            pnlBotones.Children.Add(btnCancelar);
+            pnlBotones.Children.Add(btnGuardar);
+            stack.Children.Add(pnlBotones);
+
+            win.Content = stack;
+            win.ShowDialog();
+        }
+
         private async void BtnEscanearRedAdmin_Click(object sender, RoutedEventArgs e)
         {
             await EjecutarEscaneoRedAdminAsync(mostrarDialogo: true);

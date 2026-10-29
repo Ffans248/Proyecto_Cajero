@@ -885,10 +885,24 @@
                             </Border>
 
                             <!-- SECCIÓN 1: CAJEROS CONECTADOS A LA RED Y A LA BD MAESTRA -->
-                            <StackPanel Margin="0,0,0,8">
-                                <TextBlock Text="1. Cajeros Automáticos (ATMs) Detectados en la Red (Consultando a esta BD Maestra)" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Muestra el cajero local y todos los demás cajeros conectados en la red que consultan la Base de Datos Maestra alojada en este equipo." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
-                            </StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="1. Cajeros Automáticos (ATMs) Detectados en la Red (Consultando a esta BD Maestra)" FontSize="16.5" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Muestra el cajero local y todos los demás cajeros conectados en la red que consultan la Base de Datos Maestra alojada en este equipo." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        x:Name="btnAgregarConectarCajero"
+                                        Content="➕ Conectar / Registrar Nuevo Cajero"
+                                        Style="{StaticResource SuccessButton}"
+                                        Padding="14,6"
+                                        FontSize="12"
+                                        VerticalAlignment="Center"
+                                        Click="BtnAgregarConectarCajero_Click"/>
+                            </Grid>
 
                             <DataGrid x:Name="dgCajerosRed"
                                       Height="155"

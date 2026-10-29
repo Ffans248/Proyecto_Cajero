@@ -760,16 +760,21 @@ namespace Cajerro.DAL
                         var root = doc.RootElement;
                         string idMsg = ObtenerStringProp(root, "idMensaje", "IdMensaje");
                         string tipo = ObtenerStringProp(root, "tipo", "Tipo");
-                        string cajeroId = ObtenerStringProp(root, "cajero", "CajeroId", "codigoCajero");
+                        string cajeroId = ObtenerStringProp(root, "codigo", "Codigo", "cajero", "CajeroId", "codigoCajero");
                         string bancoOrig = ObtenerStringProp(root, "bancoOrigen", "BancoOrigen", "codigoBanco");
-                        string nombreCaj = ObtenerStringProp(root, "nombreCajero", "Nombre", "ubicacion");
+                        string nombreCaj = ObtenerStringProp(root, "nombreCajero", "Nombre", "nombreEquipo", "NombreEquipo", "ubicacion");
                         decimal efecCaj = ObtenerDecimalProp(root, 10000m, "efectivoTotal", "efectivoDisponible");
 
-                        // Registrar el cajero remoto como activo en la BD Maestra alojada en este equipo
+                        // Registrar el cajero (remoto o nueva instancia ATM-02..ATM-99) como activo en la BD Maestra
                         var infoRed = ObtenerInformacionRedActual();
-                        if (!EsIpPropia(ipCliente, infoRed.IpLocal))
+                        bool esCajeroAdicional = !string.IsNullOrWhiteSpace(cajeroId) &&
+                                                 !string.Equals(cajeroId, "ATM-01", StringComparison.OrdinalIgnoreCase) &&
+                                                 !string.Equals(cajeroId, "SERVER", StringComparison.OrdinalIgnoreCase);
+
+                        if (!EsIpPropia(ipCliente, infoRed.IpLocal) || esCajeroAdicional)
                         {
-                            RegistrarLatidoCajeroRemoto(dal, cajeroId, nombreCaj, bancoOrig, ipCliente, PuertoTcpInterbancario, efecCaj);
+                            string ipRegistro = EsIpPropia(ipCliente, infoRed.IpLocal) ? infoRed.IpLocal : ipCliente;
+                            RegistrarLatidoCajeroRemoto(dal, cajeroId, nombreCaj, bancoOrig, ipRegistro, PuertoTcpInterbancario, efecCaj);
                         }
 
                         var bancos = dal.ObtenerBancosRed();
@@ -782,6 +787,7 @@ namespace Cajerro.DAL
                         };
 
                         if (string.Equals(tipo, "IB_PING", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(tipo, "REGISTRAR_CAJERO", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(tipo, "CONECTAR", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(tipo, "HEARTBEAT", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(tipo, "ATM_PING", StringComparison.OrdinalIgnoreCase))
@@ -789,8 +795,9 @@ namespace Cajerro.DAL
                             decimal efecLocal = dal.ObtenerInventarioBilletes().Sum(x => (decimal)x.Denominacion * x.Cantidad);
                             var resp = new
                             {
-                                tipo = "RESP_OK",
+                                tipo = "RESPUESTA",
                                 idMensaje = idMsg,
+                                exito = true,
                                 codigo = "00",
                                 mensaje = $"Conectado a BD Maestra en {infoRed.IpLocal}:5000 ({propio.CodigoBanco} - {propio.NombreBanco})",
                                 timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
@@ -798,7 +805,7 @@ namespace Cajerro.DAL
                                 {
                                     codigoBanco = propio.CodigoBanco,
                                     nombreBanco = propio.NombreBanco,
-                                    codigoCajero = "ATM-01",
+                                    codigoCajero = string.IsNullOrWhiteSpace(cajeroId) ? "ATM-01" : cajeroId,
                                     nombreCajero = "Cajero Central BD Maestra",
                                     bdMaestraIp = infoRed.IpLocal,
                                     bdMaestraSql = @"localhost\SQLEXPRESS (BD_CajeroRed)",
