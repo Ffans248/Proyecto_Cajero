@@ -231,6 +231,9 @@ namespace Cajero.Protocolo
 
         [JsonPropertyName("requiereCambioPin")]
         public bool RequiereCambioPin { get; set; }
+
+        [JsonPropertyName("tokenGenerado")]
+        public string TokenGenerado { get; set; } = string.Empty;
     }
 
     public class DatosValidarToken

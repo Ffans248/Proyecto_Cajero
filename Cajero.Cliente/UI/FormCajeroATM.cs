@@ -474,171 +474,134 @@ namespace Cajero.Cliente.UI
         private void ConstruirPantallaBienvenida()
         {
             pnlBienvenida = new Panel { Dock = DockStyle.Fill };
+            pnlPin = new Panel { Visible = false };
+            pnlToken = new Panel { Visible = false };
+            txtTokenEntrada = new TextBox { Visible = false };
 
             var lblBienv = new Label
             {
-                Text = "¡BIENVENIDO!",
-                Font = new Font("Segoe UI", 26f, FontStyle.Bold),
+                Text = "🏦 BIENVENIDO AL CAJERO AUTOMÁTICO",
+                Font = new Font("Segoe UI", 21f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 200, 255),
-                Top = 60,
+                Top = 25,
                 Left = 0,
                 Width = 1000,
-                Height = 55,
+                Height = 42,
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
             var lblInst = new Label
             {
-                Text = "Acerque su tarjeta o llavero RFID al lector USB (ESP32 en " + _config.PuertoCOM + ")\no ingrese manualmente los 16 dígitos:",
-                Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(210, 220, 235),
-                Top = 130,
+                Text = $"Ingrese su Tarjeta (o acerque su llavero RFID en {_config.PuertoCOM}) y su PIN de 4 dígitos:",
+                Font = new Font("Segoe UI", 10.5f),
+                ForeColor = Color.FromArgb(200, 215, 230),
+                Top = 70,
                 Left = 0,
                 Width = 1000,
-                Height = 55,
+                Height = 28,
                 TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            var grpCredenciales = new GroupBox
+            {
+                Text = "🔐 Credenciales de Acceso",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 200, 255),
+                Left = 70,
+                Top = 110,
+                Width = 480,
+                Height = 265
+            };
+
+            var lblTarj = new Label
+            {
+                Text = "1. Número de Tarjeta (16 dígitos) o UID RFID:",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Left = 25,
+                Top = 32,
+                Width = 420
             };
 
             txtTarjetaManual = new TextBox
             {
-                Font = new Font("Consolas", 18f, FontStyle.Bold),
+                Font = new Font("Consolas", 16f, FontStyle.Bold),
                 BackColor = Color.FromArgb(32, 40, 56),
                 ForeColor = Color.FromArgb(46, 213, 115),
                 TextAlign = HorizontalAlignment.Center,
                 MaxLength = 16,
-                Left = 320,
-                Top = 210,
-                Width = 360,
+                Left = 25,
+                Top = 58,
+                Width = 430,
                 Text = "1111222233334444"
             };
-
-            var btnContinuarManual = new Button
+            txtTarjetaManual.KeyDown += async (s, e) =>
             {
-                Text = "Ingresar con Tarjeta ➡️",
-                Font = new Font("Segoe UI", 11.5f, FontStyle.Bold),
-                BackColor = Color.FromArgb(0, 122, 255),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Left = 350,
-                Top = 275,
-                Width = 300,
-                Height = 48,
-                Cursor = Cursors.Hand
-            };
-            btnContinuarManual.FlatAppearance.BorderSize = 0;
-            btnContinuarManual.Click += (s, e) =>
-            {
-                if (txtTarjetaManual.Text.Trim().Length == 0) return;
-                AvanzarAPantallaPin(txtTarjetaManual.Text.Trim());
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    if (txtPinEntrada.Text.Trim().Length == 4)
+                        await EnviarLoginAsync();
+                    else
+                        txtPinEntrada.Focus();
+                }
             };
 
-            // Botones de prueba rápida (1-click para demostración)
-            var pnlDemo = new GroupBox
+            var lblPin = new Label
             {
-                Text = "🚀 Accesos Rápidos de Prueba (Tarjetas del Sistema)",
+                Text = "2. PIN de Seguridad (4 dígitos):",
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 177, 66),
-                Left = 150,
-                Top = 360,
-                Width = 700,
-                Height = 160
-            };
-
-            string[,] tarjetasDemo = {
-                { "Carlos Méndez (1111222233334444)", "1111222233334444" },
-                { "Ana López (2222333344445555)", "2222333344445555" },
-                { "Juan Pérez (3333444455556666)", "3333444455556666" },
-                { "María Gómez (4444555566667777)", "4444555566667777" },
-                { "Llavero RFID Azul (99A90BA4)", "99A90BA4" },
-                { "Tarjeta Blanca RFID (A77B2F63)", "A77B2F63" }
-            };
-
-            for (int i = 0; i < 6; i++)
-            {
-                int col = i % 2;
-                int row = i / 2;
-                string label = tarjetasDemo[i, 0];
-                string val = tarjetasDemo[i, 1];
-
-                var btnD = new Button
-                {
-                    Text = label,
-                    Font = new Font("Segoe UI", 8.5f),
-                    BackColor = Color.FromArgb(40, 50, 70),
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat,
-                    Left = 20 + (col * 340),
-                    Top = 28 + (row * 40),
-                    Width = 320,
-                    Height = 32,
-                    Cursor = Cursors.Hand
-                };
-                btnD.FlatAppearance.BorderSize = 0;
-                btnD.Click += (s, e) =>
-                {
-                    txtTarjetaManual.Text = val;
-                    AvanzarAPantallaPin(val);
-                };
-                pnlDemo.Controls.Add(btnD);
-            }
-
-            pnlBienvenida.Controls.AddRange(new Control[] { lblBienv, lblInst, txtTarjetaManual, btnContinuarManual, pnlDemo });
-            pnlContenedorPantallas.Controls.Add(pnlBienvenida);
-        }
-
-        private void AvanzarAPantallaPin(string tarjeta)
-        {
-            _tarjetaActual = tarjeta;
-            txtPinEntrada.Text = "";
-            MostrarPantalla(pnlPin);
-        }
-
-        #endregion
-
-        #region 2. Pantalla: Ingreso PIN
-
-        private void ConstruirPantallaPin()
-        {
-            pnlPin = new Panel { Dock = DockStyle.Fill };
-
-            var lblT = new Label
-            {
-                Text = "INGRESE SU PIN DE SEGURIDAD",
-                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(0, 200, 255),
-                Top = 40,
-                Left = 0,
-                Width = 1000,
-                Height = 45,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            var lblSub = new Label
-            {
-                Text = "El PIN debe tener 4 dígitos numéricos:",
-                Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(200, 215, 230),
-                Top = 95,
-                Left = 0,
-                Width = 1000,
-                Height = 30,
-                TextAlign = ContentAlignment.MiddleCenter
+                ForeColor = Color.White,
+                Left = 25,
+                Top = 108,
+                Width = 420
             };
 
             txtPinEntrada = new TextBox
             {
-                Font = new Font("Segoe UI", 24f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 20f, FontStyle.Bold),
                 BackColor = Color.FromArgb(32, 40, 56),
                 ForeColor = Color.FromArgb(46, 213, 115),
                 TextAlign = HorizontalAlignment.Center,
                 PasswordChar = '●',
                 MaxLength = 4,
-                Left = 380,
-                Top = 135,
-                Width = 240
+                Left = 25,
+                Top = 134,
+                Width = 430,
+                Text = "1234"
+            };
+            txtPinEntrada.KeyDown += async (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    await EnviarLoginAsync();
+                }
             };
 
-            // Teclado Numérico Touch
+            var btnContinuarManual = new Button
+            {
+                Text = "🔓 INGRESAR A MI CUENTA ➡️",
+                Font = new Font("Segoe UI", 11.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(46, 213, 115),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 25,
+                Top = 195,
+                Width = 430,
+                Height = 48,
+                Cursor = Cursors.Hand
+            };
+            btnContinuarManual.FlatAppearance.BorderSize = 0;
+            btnContinuarManual.Click += async (s, e) =>
+            {
+                _tarjetaActual = txtTarjetaManual.Text.Trim();
+                await EnviarLoginAsync();
+            };
+
+            grpCredenciales.Controls.AddRange(new Control[] { lblTarj, txtTarjetaManual, lblPin, txtPinEntrada, btnContinuarManual });
+
+            // Teclado Numérico Touch al lado derecho del mismo panel
             var pnlTeclado = CrearTecladoTouch((digito) =>
             {
                 if (txtPinEntrada.Text.Length < 4) txtPinEntrada.Text += digito;
@@ -648,17 +611,100 @@ namespace Cajero.Cliente.UI
                     txtPinEntrada.Text = txtPinEntrada.Text[..^1];
             }, async () =>
             {
+                _tarjetaActual = txtTarjetaManual.Text.Trim();
                 await EnviarLoginAsync();
-            }, () => CerrarSesion());
-            pnlTeclado.Left = 340;
-            pnlTeclado.Top = 205;
+            }, () =>
+            {
+                txtPinEntrada.Text = "";
+            });
+            pnlTeclado.Left = 590;
+            pnlTeclado.Top = 115;
 
-            pnlPin.Controls.AddRange(new Control[] { lblT, lblSub, txtPinEntrada, pnlTeclado });
+            // Botones de prueba rápida (1-click para demostración directa)
+            var pnlDemo = new GroupBox
+            {
+                Text = "🚀 Acceso Directo en 1 Clic (Autocompleta Tarjeta + PIN e Inicia Sesión)",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 177, 66),
+                Left = 70,
+                Top = 390,
+                Width = 840,
+                Height = 155
+            };
+
+            string[,] tarjetasDemo = {
+                { "Carlos Méndez (1111222233334444 | PIN: 1234)", "1111222233334444", "1234" },
+                { "Ana López (2222333344445555 | PIN: 4321)", "2222333344445555", "4321" },
+                { "Juan Pérez (3333444455556666 | PIN: 1111)", "3333444455556666", "1111" },
+                { "María Gómez (4444555566667777 | PIN: 2222)", "4444555566667777", "2222" },
+                { "Llavero RFID Azul (99A90BA4 | PIN: 1234)", "99A90BA4", "1234" },
+                { "Tarjeta Blanca RFID (A77B2F63 | PIN: 4321)", "A77B2F63", "4321" }
+            };
+
+            for (int i = 0; i < 6; i++)
+            {
+                int col = i % 2;
+                int row = i / 2;
+                string label = tarjetasDemo[i, 0];
+                string valTarj = tarjetasDemo[i, 1];
+                string valPin = tarjetasDemo[i, 2];
+
+                var btnD = new Button
+                {
+                    Text = label,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    BackColor = Color.FromArgb(40, 50, 70),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Left = 25 + (col * 405),
+                    Top = 28 + (row * 38),
+                    Width = 385,
+                    Height = 32,
+                    Cursor = Cursors.Hand
+                };
+                btnD.FlatAppearance.BorderSize = 0;
+                btnD.Click += async (s, e) =>
+                {
+                    txtTarjetaManual.Text = valTarj;
+                    txtPinEntrada.Text = valPin;
+                    _tarjetaActual = valTarj;
+                    await EnviarLoginAsync();
+                };
+                pnlDemo.Controls.Add(btnD);
+            }
+
+            pnlBienvenida.Controls.AddRange(new Control[] { lblBienv, lblInst, grpCredenciales, pnlTeclado, pnlDemo });
+            pnlContenedorPantallas.Controls.Add(pnlBienvenida);
             pnlContenedorPantallas.Controls.Add(pnlPin);
+            pnlContenedorPantallas.Controls.Add(pnlToken);
+        }
+
+        private void AvanzarAPantallaPin(string tarjeta)
+        {
+            _tarjetaActual = tarjeta;
+            txtTarjetaManual.Text = tarjeta;
+            txtPinEntrada.Focus();
+        }
+
+        private void ConstruirPantallaPin()
+        {
+            // Unificado en ConstruirPantallaBienvenida
+        }
+
+        private void ConstruirPantallaToken()
+        {
+            // Unificado en ConstruirPantallaBienvenida
         }
 
         private async Task EnviarLoginAsync()
         {
+            _tarjetaActual = txtTarjetaManual.Text.Trim();
+            if (string.IsNullOrWhiteSpace(_tarjetaActual))
+            {
+                MessageBox.Show("Ingrese su número de tarjeta o acerque su llavero RFID.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             string pin = txtPinEntrada.Text.Trim();
             if (pin.Length != 4)
             {
@@ -669,7 +715,7 @@ namespace Cajero.Cliente.UI
             var sol = new SolicitudLogin
             {
                 Cajero = _config.CodigoCajero,
-                NumeroTarjeta = _tarjetaActual!,
+                NumeroTarjeta = _tarjetaActual,
                 Pin = pin
             };
 
@@ -682,9 +728,19 @@ namespace Cajero.Cliente.UI
 
             if (resp.Codigo == CodigosRespuesta.Aprobado)
             {
-                // Éxito: el servidor generó el token y lo mostró en la ventana del servidor
-                txtTokenEntrada.Text = "";
-                MostrarPantalla(pnlToken);
+                string tokenRecibido = "";
+                if (resp.Datos is JsonElement je && je.TryGetProperty("tokenGenerado", out var pTok) && pTok.ValueKind == JsonValueKind.String)
+                {
+                    tokenRecibido = pTok.GetString() ?? "";
+                }
+                else if (!string.IsNullOrWhiteSpace(resp.Mensaje) && resp.Mensaje.Contains("Token:"))
+                {
+                    int idx = resp.Mensaje.IndexOf("Token:", StringComparison.OrdinalIgnoreCase);
+                    tokenRecibido = resp.Mensaje[(idx + 6)..].Trim();
+                }
+
+                txtTokenEntrada.Text = tokenRecibido;
+                await EnviarValidarTokenAsync();
             }
             else
             {
@@ -695,68 +751,6 @@ namespace Cajero.Cliente.UI
                     CerrarSesion();
                 }
             }
-        }
-
-        #endregion
-
-        #region 3. Pantalla: Ingreso Token
-
-        private void ConstruirPantallaToken()
-        {
-            pnlToken = new Panel { Dock = DockStyle.Fill };
-
-            var lblT = new Label
-            {
-                Text = "📱 TOKEN DE SEGURIDAD MÓVIL",
-                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(0, 200, 255),
-                Top = 40,
-                Left = 0,
-                Width = 1000,
-                Height = 45,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            var lblSub = new Label
-            {
-                Text = "Se ha enviado un código de 6 dígitos a su teléfono móvil (Ventana del Servidor).\nIngrese el token para acceder a su cuenta:",
-                Font = new Font("Segoe UI", 10.5f),
-                ForeColor = Color.FromArgb(200, 215, 230),
-                Top = 95,
-                Left = 0,
-                Width = 1000,
-                Height = 45,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            txtTokenEntrada = new TextBox
-            {
-                Font = new Font("Segoe UI", 24f, FontStyle.Bold),
-                BackColor = Color.FromArgb(32, 40, 56),
-                ForeColor = Color.FromArgb(0, 200, 255),
-                TextAlign = HorizontalAlignment.Center,
-                MaxLength = 6,
-                Left = 360,
-                Top = 150,
-                Width = 280
-            };
-
-            var pnlTeclado = CrearTecladoTouch((digito) =>
-            {
-                if (txtTokenEntrada.Text.Length < 6) txtTokenEntrada.Text += digito;
-            }, () =>
-            {
-                if (txtTokenEntrada.Text.Length > 0)
-                    txtTokenEntrada.Text = txtTokenEntrada.Text[..^1];
-            }, async () =>
-            {
-                await EnviarValidarTokenAsync();
-            }, () => CerrarSesion());
-            pnlTeclado.Left = 340;
-            pnlTeclado.Top = 220;
-
-            pnlToken.Controls.AddRange(new Control[] { lblT, lblSub, txtTokenEntrada, pnlTeclado });
-            pnlContenedorPantallas.Controls.Add(pnlToken);
         }
 
         private async Task EnviarValidarTokenAsync()

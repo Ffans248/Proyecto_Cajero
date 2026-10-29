@@ -20,6 +20,7 @@ namespace Cajero.Cliente.Comunicaciones
         private CancellationTokenSource? _cts;
         private System.Threading.Timer? _timerHeartbeat;
         private System.Threading.Timer? _timerReconexion;
+        private bool _intentoAutoIniciarServidor = false;
 
         private readonly ConcurrentDictionary<string, TaskCompletionSource<MensajeRespuesta>> _solicitudesPendientes = new();
 
@@ -65,43 +66,63 @@ namespace Cajero.Cliente.Comunicaciones
 
         public async Task<bool> IntentarConexionAsync()
         {
-            try
+            string[] ipsProbar = string.Equals(_config.ServidorIP, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                ? new[] { "127.0.0.1" }
+                : new[] { _config.ServidorIP, "127.0.0.1" };
+
+            foreach (var ipDestino in ipsProbar)
             {
-                if (_tcpClient != null)
+                try
                 {
-                    try { _tcpClient.Close(); } catch { }
-                }
-
-                _tcpClient = new TcpClient();
-                var connectTask = _tcpClient.ConnectAsync(_config.ServidorIP, _config.ServidorPuerto);
-                var delayTask = Task.Delay(4000);
-
-                if (await Task.WhenAny(connectTask, delayTask) == connectTask && _tcpClient.Connected)
-                {
-                    _stream = _tcpClient.GetStream();
-                    _reader = new StreamReader(_stream, Encoding.UTF8);
-                    _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
-
-                    // Iniciar bucle de escucha de respuestas y comandos
-                    _ = Task.Run(() => EscucharServidorAsync(_cts!.Token));
-
-                    // Enviar registro de cajero inmediatamente
-                    var reg = new SolicitudRegistroCajero
+                    if (_tcpClient != null)
                     {
-                        Codigo = _config.CodigoCajero,
-                        NombreEquipo = Environment.MachineName,
-                        IP = _config.ServidorIP,
-                        Version = "2.0"
-                    };
+                        try { _tcpClient.Close(); } catch { }
+                    }
 
-                    var resp = await EnviarSolicitudAsync(reg, 5000);
-                    bool ok = (resp != null && resp.Codigo == CodigosRespuesta.Aprobado);
+                    _tcpClient = new TcpClient();
+                    var connectTask = _tcpClient.ConnectAsync(ipDestino, _config.ServidorPuerto);
+                    var delayTask = Task.Delay(2500);
 
-                    EstadoConexionCambiado?.Invoke(true);
-                    return true;
+                    if (await Task.WhenAny(connectTask, delayTask) == connectTask && _tcpClient.Connected)
+                    {
+                        _stream = _tcpClient.GetStream();
+                        _reader = new StreamReader(_stream, Encoding.UTF8);
+                        _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
+
+                        // Iniciar bucle de escucha de respuestas y comandos
+                        _ = Task.Run(() => EscucharServidorAsync(_cts!.Token));
+
+                        // Enviar registro de cajero inmediatamente
+                        var reg = new SolicitudRegistroCajero
+                        {
+                            Codigo = _config.CodigoCajero,
+                            NombreEquipo = Environment.MachineName,
+                            IP = _config.ServidorIP,
+                            Version = "2.0"
+                        };
+
+                        var resp = await EnviarSolicitudAsync(reg, 4000);
+                        bool ok = (resp != null && resp.Codigo == CodigosRespuesta.Aprobado);
+
+                        EstadoConexionCambiado?.Invoke(ok);
+                        if (ok) return true;
+                    }
                 }
+                catch { }
             }
-            catch { }
+
+            // Si estamos en el equipo maestro y ningún servidor externo está escuchando en el puerto 5000, activar el nodo SQL Maestro en segundo plano sin abrir ventanas extra
+            if (!_intentoAutoIniciarServidor)
+            {
+                _intentoAutoIniciarServidor = true;
+                try
+                {
+                    Cajerro.DAL.DescubridorRedBancaria.AsegurarNodoEnRedActivo(new Cajerro.DAL.GestorArchivosCSV());
+                    await Task.Delay(350);
+                    return await IntentarConexionAsync();
+                }
+                catch { }
+            }
 
             EstadoConexionCambiado?.Invoke(false);
             return false;

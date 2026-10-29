@@ -10,6 +10,7 @@ namespace Cajero.Servidor.UI
     public class FormLogin : Form
     {
         private readonly RepositorioServidor _repo;
+        private readonly ServidorTcp _servidorTcp;
         private TextBox txtUsuario = null!;
         private TextBox txtPassword = null!;
         private Button btnLogin = null!;
@@ -18,6 +19,15 @@ namespace Cajero.Servidor.UI
         public FormLogin()
         {
             _repo = new RepositorioServidor();
+            _servidorTcp = new ServidorTcp(_repo, 5000);
+            try
+            {
+                _servidorTcp.Iniciar();
+            }
+            catch
+            {
+                // Si Cajero.UI ya está escuchando en el puerto 5000, no interrumpir el inicio
+            }
             InicializarComponentes();
         }
 
@@ -50,9 +60,9 @@ namespace Cajero.Servidor.UI
 
             var lblSub = new Label
             {
-                Text = "Servidor Central & Dashboard Fase II",
+                Text = "Servidor Central & Dashboard Fase II (Puerto 5000 Activo)",
                 Font = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(170, 185, 205),
+                ForeColor = Color.FromArgb(46, 213, 115),
                 Dock = DockStyle.Top,
                 Height = 30,
                 TextAlign = ContentAlignment.MiddleCenter
@@ -66,7 +76,7 @@ namespace Cajero.Servidor.UI
 
             var lblU = new Label
             {
-                Text = "Usuario:",
+                Text = "Usuari:",
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 Left = 50,
                 Top = y,
@@ -166,27 +176,39 @@ namespace Cajero.Servidor.UI
             lblEstado.Text = "Validando credenciales...";
             Application.DoEvents();
 
-            var admin = _repo.AutenticarAdmin(user, pass);
-            if (admin != null)
+            try
             {
-                lblEstado.ForeColor = Color.FromArgb(46, 213, 115);
-                lblEstado.Text = $"Acceso concedido ({admin.Rol}).";
+                var admin = _repo.AutenticarAdmin(user, pass);
+                if (admin != null)
+                {
+                    lblEstado.ForeColor = Color.FromArgb(46, 213, 115);
+                    lblEstado.Text = $"Acceso concedido ({admin.Rol}).";
 
-                // Iniciar servidor TCP
-                var servidorTcp = new ServidorTcp(_repo, 5000);
-                servidorTcp.Iniciar();
+                    try
+                    {
+                        if (!_servidorTcp.EstaCorriendo)
+                            _servidorTcp.Iniciar();
+                    }
+                    catch { }
 
-                _repo.RegistrarEnBitacora("Administrador", "Inicio de Sesión", $"Admin '{admin.Usuario}' inició sesión en el servidor ({admin.Rol})");
+                    _repo.RegistrarEnBitacora("Administrador", "Inicio de Sesión", $"Admin '{admin.Usuario}' inició sesión en el servidor ({admin.Rol})");
 
-                var dashboard = new FormDashboard(admin, _repo, servidorTcp);
-                dashboard.FormClosed += (s, args) => this.Close();
-                dashboard.Show();
-                this.Hide();
+                    var dashboard = new FormDashboard(admin, _repo, _servidorTcp);
+                    dashboard.FormClosed += (s, args) => this.Close();
+                    dashboard.Show();
+                    this.Hide();
+                }
+                else
+                {
+                    lblEstado.ForeColor = Color.FromArgb(255, 71, 87);
+                    lblEstado.Text = "Credenciales incorrectas o usuario inactivo.";
+                    btnLogin.Enabled = true;
+                }
             }
-            else
+            catch (Exception ex)
             {
                 lblEstado.ForeColor = Color.FromArgb(255, 71, 87);
-                lblEstado.Text = "Credenciales incorrectas o usuario inactivo.";
+                lblEstado.Text = "Error de BD: " + ex.Message;
                 btnLogin.Enabled = true;
             }
         }

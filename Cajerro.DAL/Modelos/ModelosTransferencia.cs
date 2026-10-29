@@ -85,6 +85,32 @@ namespace Cajerro.DAL.Modelos
     }
 
     /// <summary>
+    /// Representa un equipo o dispositivo activo detectado en tiempo real en la red (Wi-Fi, LAN o VPN)
+    /// para poder asignarlo directamente como un Cajero Automático (ATM) conectado a la BD Maestra.
+    /// </summary>
+    public class EquipoRedDetectado
+    {
+        public string IP { get; set; } = string.Empty;
+        public string NombreEquipo { get; set; } = "Desconocido";
+        public string DireccionMac { get; set; } = "N/A";
+        public string InterfazRed { get; set; } = "LAN / Wi-Fi";
+        public long LatenciaMs { get; set; } = -1;
+        public bool PuertoCajeroAbierto { get; set; }
+        public string ServiciosDetectados { get; set; } = "Host Activo";
+        public bool YaAsignadoComoCajero { get; set; }
+        public string CodigoCajeroAsignado { get; set; } = string.Empty;
+        public string NombreCajeroAsignado { get; set; } = string.Empty;
+        public string CodigoBancoAsignado { get; set; } = "BANC01";
+        public bool EsEquipoLocal { get; set; }
+
+        public string LatenciaTexto => LatenciaMs >= 0 ? $"{LatenciaMs} ms" : "< 1 ms";
+        public string EstadoAsignacionTexto =>
+            YaAsignadoComoCajero
+                ? $"✅ Asignado ({CodigoCajeroAsignado} - {CodigoBancoAsignado})"
+                : "🆕 Disponible para asignar";
+    }
+
+    /// <summary>
     /// Representa una cuenta perteneciente a otro banco de la red para verificación de existencia y acreditación.
     /// </summary>
     public class CuentaExternaInfo

@@ -265,11 +265,13 @@ namespace Cajero.Servidor.Comunicaciones
                             // Notificar a la UI del Servidor para mostrar la ventana "Token del usuario"
                             TokenGenerado?.Invoke(tokenGen, nombreUsuario, req.Cajero, exp);
 
+                            respuesta.Mensaje = $"{msj} Token: {tokenGen}";
                             respuesta.Datos = new DatosLogin
                             {
                                 IdUsuario = idUsuario,
                                 NombreUsuario = nombreUsuario,
-                                RequiereCambioPin = reqCambioPin
+                                RequiereCambioPin = reqCambioPin,
+                                TokenGenerado = tokenGen
                             };
 
                             if (infoCliente != null)

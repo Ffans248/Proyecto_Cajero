@@ -18,6 +18,7 @@ namespace Cajero.UI
             _rolActual = rol;
             _rfidToken = rfidToken;
 
+            Cajerro.DAL.DescubridorRedBancaria.AsegurarNodoEnRedActivo(new Cajerro.DAL.GestorArchivosCSV());
             ConfigurarVistaPorRol();
         }
 

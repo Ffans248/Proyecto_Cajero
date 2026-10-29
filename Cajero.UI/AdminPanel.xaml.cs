@@ -31,6 +31,7 @@ namespace Cajero.UI
 
             _dal = new GestorArchivosCSV();
             _usuarioLogica = new UsuarioLogica(_dal);
+            DescubridorRedBancaria.AsegurarNodoEnRedActivo(_dal);
 
             dgTransacciones.ItemsSource = _transacciones;
             lvStockBoveda.ItemsSource = _stockBoveda;
@@ -773,38 +774,128 @@ namespace Cajero.UI
 
             var win = new Window
             {
-                Title = "Conectar / Registrar Nuevo Cajero en la BD Maestra",
-                Width = 480,
-                Height = 430,
+                Title = "Asignar Cajero a partir de Equipos Detectados en Red",
+                Width = 980,
+                Height = 670,
+                MinWidth = 860,
+                MinHeight = 580,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
-                ResizeMode = ResizeMode.NoResize,
                 Background = (System.Windows.Media.Brush)FindResource("BgPrimaryBrush")
             };
 
-            var stack = new StackPanel { Margin = new Thickness(22) };
-            stack.Children.Add(new TextBlock
+            var rootGrid = new Grid { Margin = new Thickness(20) };
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // 1. Encabezado + Botón Re-escanear Equipos
+            var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var headerStack = new StackPanel();
+            headerStack.Children.Add(new TextBlock
             {
-                Text = "Conectar Nuevo Cajero a la BD Maestra",
+                Text = "🖥️ Asignar Cajero a partir de Equipos en Red (Tiempo Real)",
                 FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Foreground = (System.Windows.Media.Brush)FindResource("TextPrimaryBrush"),
-                Margin = new Thickness(0, 0, 0, 6)
+                Foreground = (System.Windows.Media.Brush)FindResource("TextPrimaryBrush")
             });
-            stack.Children.Add(new TextBlock
+            var lblSubEstado = new TextBlock
             {
-                Text = $"BD Maestra alojada en este equipo: {infoRed.IpLocal}:5000",
+                Text = $"Escaneando equipos activos en {infoRed.NombreRedSsid} ({infoRed.SubredCidr}) y VPN... | BD Maestra: {infoRed.IpLocal}:5000",
                 FontSize = 12,
                 Foreground = (System.Windows.Media.Brush)FindResource("AccentPrimaryBrush"),
-                Margin = new Thickness(0, 0, 0, 14)
-            });
+                Margin = new Thickness(0, 3, 0, 0)
+            };
+            headerStack.Children.Add(lblSubEstado);
+            Grid.SetColumn(headerStack, 0);
+            headerGrid.Children.Add(headerStack);
 
-            TextBox CrearCampo(string etiqueta, string valorInicial)
+            var btnRefrescarEquipos = new Button
             {
-                stack.Children.Add(new TextBlock
+                Content = "🔄 Escanear Equipos Ahora",
+                Style = (Style)FindResource("PrimaryButton"),
+                Padding = new Thickness(14, 7, 14, 7),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(btnRefrescarEquipos, 1);
+            headerGrid.Children.Add(btnRefrescarEquipos);
+
+            Grid.SetRow(headerGrid, 0);
+            rootGrid.Children.Add(headerGrid);
+
+            // 2. Tabla de Equipos Detectados en la Red (IP, Nombre del Equipo, MAC, Red, Latencia, Servicios, Estado)
+            var equiposCollection = new ObservableCollection<EquipoRedDetectado>();
+            var dgEquipos = new DataGrid
+            {
+                ItemsSource = equiposCollection,
+                AutoGenerateColumns = false,
+                IsReadOnly = true,
+                CanUserAddRows = false,
+                CanUserDeleteRows = false,
+                SelectionMode = DataGridSelectionMode.Single,
+                GridLinesVisibility = DataGridGridLinesVisibility.None,
+                HeadersVisibility = DataGridHeadersVisibility.Column,
+                Background = (System.Windows.Media.Brush)FindResource("BgCardBrush"),
+                RowBackground = (System.Windows.Media.Brush)FindResource("BgCardBrush"),
+                AlternatingRowBackground = (System.Windows.Media.Brush)FindResource("BgCardLighterBrush"),
+                Foreground = (System.Windows.Media.Brush)FindResource("TextPrimaryBrush"),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                FontSize = 12.5,
+                RowHeight = 34,
+                Margin = new Thickness(0, 0, 0, 14)
+            };
+
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Dirección IP", Binding = new System.Windows.Data.Binding("IP"), Width = 120 });
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Nombre del Equipo (Hostname)", Binding = new System.Windows.Data.Binding("NombreEquipo"), Width = 195 });
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Dirección MAC", Binding = new System.Windows.Data.Binding("DireccionMac"), Width = 135 });
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Red / Interfaz", Binding = new System.Windows.Data.Binding("InterfazRed"), Width = 135 });
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Ping", Binding = new System.Windows.Data.Binding("LatenciaTexto"), Width = 65 });
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Servicios / Puertos Activos", Binding = new System.Windows.Data.Binding("ServiciosDetectados"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            dgEquipos.Columns.Add(new DataGridTextColumn { Header = "Estado de Asignación", Binding = new System.Windows.Data.Binding("EstadoAsignacionTexto"), Width = 185 });
+
+            Grid.SetRow(dgEquipos, 1);
+            rootGrid.Children.Add(dgEquipos);
+
+            // 3. Panel Inferior: Formulario de Asignación del Equipo Seleccionado como Cajero
+            var formBorder = new Border
+            {
+                Background = (System.Windows.Media.Brush)FindResource("BgCardBrush"),
+                BorderBrush = (System.Windows.Media.Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(16)
+            };
+
+            var formStack = new StackPanel();
+            var lblEquipoSeleccionado = new TextBlock
+            {
+                Text = "👆 Seleccione un equipo de la tabla superior para autocompletar sus datos o edítelos manualmente:",
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (System.Windows.Media.Brush)FindResource("AccentSuccessBrush"),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            formStack.Children.Add(lblEquipoSeleccionado);
+
+            var inputsGrid = new Grid();
+            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) });
+            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) });
+            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.7, GridUnitType.Star) });
+
+            TextBox CrearColumnaInput(int col, string label, string valorInicial)
+            {
+                var sp = new StackPanel { Margin = new Thickness(col == 0 ? 0 : 8, 0, 0, 0) };
+                sp.Children.Add(new TextBlock
                 {
-                    Text = etiqueta,
-                    FontSize = 12,
+                    Text = label,
+                    FontSize = 11.5,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = (System.Windows.Media.Brush)FindResource("TextSecondaryBrush"),
                     Margin = new Thickness(0, 0, 0, 4)
@@ -813,29 +904,56 @@ namespace Cajero.UI
                 {
                     Text = valorInicial,
                     Height = 34,
-                    FontSize = 13.5,
-                    Margin = new Thickness(0, 0, 0, 10),
+                    FontSize = 13,
                     Padding = new Thickness(8, 4, 8, 4)
                 };
-                stack.Children.Add(tb);
+                sp.Children.Add(tb);
+                Grid.SetColumn(sp, col);
+                inputsGrid.Children.Add(sp);
                 return tb;
             }
 
-            var txtCodigo = CrearCampo("Código del Cajero (ej. ATM-02, ATM-06):", $"ATM-{sigNum:D2}");
-            var txtNombre = CrearCampo("Nombre / Ubicación del Cajero:", $"Cajero Remoto Sucursal {sigNum}");
-            var txtBanco = CrearCampo("Código del Banco al que pertenece (ej. BANC01, BANC02):", "BANC01");
-            var txtIp = CrearCampo("IP del Cajero en la Red (Wi-Fi / LAN / Radmin VPN):", infoRed.IpLocal);
+            var txtCodigo = CrearColumnaInput(0, "Código Cajero:", $"ATM-{sigNum:D2}");
+            var txtNombre = CrearColumnaInput(1, "Nombre / Equipo / Ubicación:", $"Cajero Remoto Sucursal {sigNum}");
+            var txtBanco = CrearColumnaInput(2, "Código Banco:", "BANC01");
+            var txtIp = CrearColumnaInput(3, "IP del Equipo:", infoRed.IpLocal);
+            var txtPuerto = CrearColumnaInput(4, "Puerto TCP:", "5000");
+
+            formStack.Children.Add(inputsGrid);
+
+            dgEquipos.SelectionChanged += (s, ev) =>
+            {
+                if (dgEquipos.SelectedItem is EquipoRedDetectado eq)
+                {
+                    txtIp.Text = eq.IP;
+                    if (eq.YaAsignadoComoCajero && !string.IsNullOrWhiteSpace(eq.CodigoCajeroAsignado))
+                    {
+                        txtCodigo.Text = eq.CodigoCajeroAsignado;
+                        txtNombre.Text = eq.NombreCajeroAsignado;
+                        txtBanco.Text = eq.CodigoBancoAsignado;
+                        lblEquipoSeleccionado.Text = $"✏️ Editando cajero ya asignado al equipo {eq.NombreEquipo} ({eq.IP} | MAC: {eq.DireccionMac})";
+                    }
+                    else
+                    {
+                        int nuevoIdx = _dal.ObtenerCajerosRed().Count + 1;
+                        txtCodigo.Text = $"ATM-{nuevoIdx:D2}";
+                        txtNombre.Text = $"Cajero {eq.NombreEquipo} ({eq.InterfazRed})";
+                        txtBanco.Text = "BANC01";
+                        lblEquipoSeleccionado.Text = $"✅ Equipo seleccionado: {eq.NombreEquipo} | IP: {eq.IP} | MAC: {eq.DireccionMac} | Red: {eq.InterfazRed}";
+                    }
+                }
+            };
 
             var pnlBotones = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 10, 0, 0)
+                Margin = new Thickness(0, 14, 0, 0)
             };
 
             var btnCancelar = new Button
             {
-                Content = "Cancelar",
+                Content = "Cerrar",
                 Style = (Style)FindResource("OutlineButton"),
                 Width = 110,
                 Height = 36,
@@ -845,9 +963,9 @@ namespace Cajero.UI
 
             var btnGuardar = new Button
             {
-                Content = "Conectar a BD Maestra",
+                Content = "✅ Asignar Equipo como Cajero en BD Maestra",
                 Style = (Style)FindResource("SuccessButton"),
-                Width = 180,
+                Padding = new Thickness(18, 0, 18, 0),
                 Height = 36
             };
             btnGuardar.Click += (s, ev) =>
@@ -856,10 +974,11 @@ namespace Cajero.UI
                 string nom = txtNombre.Text.Trim();
                 string ban = txtBanco.Text.Trim().ToUpperInvariant();
                 string ip = txtIp.Text.Trim();
+                int puerto = int.TryParse(txtPuerto.Text.Trim(), out var p) && p > 0 ? p : 5000;
 
                 if (string.IsNullOrWhiteSpace(cod) || string.IsNullOrWhiteSpace(ip))
                 {
-                    CustomMessageBox.Show("Complete el código del cajero y su dirección IP.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    CustomMessageBox.Show("Seleccione un equipo de la red o complete el código del cajero y su IP.", "Datos Incompletos", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -870,6 +989,7 @@ namespace Cajero.UI
                     existente.NombreCajero = string.IsNullOrWhiteSpace(nom) ? existente.NombreCajero : nom;
                     existente.CodigoBanco = string.IsNullOrWhiteSpace(ban) ? "BANC01" : ban;
                     existente.IP = ip;
+                    existente.Puerto = puerto;
                     existente.EnLinea = true;
                     existente.UltimaConexionBdMaestra = DateTime.Now;
                 }
@@ -881,8 +1001,8 @@ namespace Cajero.UI
                         NombreCajero = string.IsNullOrWhiteSpace(nom) ? $"Cajero {cod}" : nom,
                         CodigoBanco = string.IsNullOrWhiteSpace(ban) ? "BANC01" : ban,
                         IP = ip,
-                        Puerto = 5000,
-                        EsLocal = false,
+                        Puerto = puerto,
+                        EsLocal = string.Equals(ip, infoRed.IpLocal, StringComparison.OrdinalIgnoreCase),
                         EnLinea = true,
                         EfectivoActual = 10000m,
                         UltimaConexionBdMaestra = DateTime.Now
@@ -890,21 +1010,56 @@ namespace Cajero.UI
                 }
 
                 _dal.GuardarCajerosRed(lista);
-                _dal.RegistrarEnBitacora("Conexión Cajero", cod, $"Cajero {cod} ({nom}) conectado a la BD Maestra desde IP {ip}.");
+                _dal.RegistrarEnBitacora("Asignación Cajero Red", cod, $"Equipo {ip}:{puerto} asignado como cajero {cod} ({nom}) en la BD Maestra.");
                 CargarRedInterbancaria();
                 win.Close();
                 CustomMessageBox.Show(
-                    $"¡El cajero {cod} ({nom}) en la IP {ip} ha sido registrado y conectado exitosamente a la Base de Datos Maestra!",
-                    "Cajero Conectado",
+                    $"¡El equipo {ip}:{puerto} ha sido asignado exitosamente como Cajero {cod} ({nom}) en la Base de Datos Maestra SQL!",
+                    "Equipo Asignado como Cajero",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             };
 
             pnlBotones.Children.Add(btnCancelar);
             pnlBotones.Children.Add(btnGuardar);
-            stack.Children.Add(pnlBotones);
+            formStack.Children.Add(pnlBotones);
+            formBorder.Child = formStack;
 
-            win.Content = stack;
+            Grid.SetRow(formBorder, 2);
+            rootGrid.Children.Add(formBorder);
+
+            async Task EscanearYCargarEquiposAsync()
+            {
+                try
+                {
+                    btnRefrescarEquipos.IsEnabled = false;
+                    btnRefrescarEquipos.Content = "⏳ Escaneando red...";
+                    lblSubEstado.Text = $"Buscando equipos activos en {infoRed.NombreRedSsid} ({infoRed.SubredCidr}) y Radmin VPN (resolviendo IP, Hostname, MAC y puertos)...";
+
+                    var detectados = await DescubridorRedBancaria.EscanearEquiposActivosEnRedAsync(_dal);
+                    equiposCollection.Clear();
+                    foreach (var eq in detectados)
+                    {
+                        equiposCollection.Add(eq);
+                    }
+
+                    lblSubEstado.Text = $"✅ {detectados.Count} equipos encontrados en la red ({detectados.Count(x => !x.YaAsignadoComoCajero)} disponibles para asignar) | BD Maestra: {infoRed.IpLocal}:5000";
+                }
+                catch (Exception ex)
+                {
+                    lblSubEstado.Text = $"Error al escanear equipos: {ex.Message}";
+                }
+                finally
+                {
+                    btnRefrescarEquipos.Content = "🔄 Escanear Equipos Ahora";
+                    btnRefrescarEquipos.IsEnabled = true;
+                }
+            }
+
+            btnRefrescarEquipos.Click += async (s, ev) => await EscanearYCargarEquiposAsync();
+            win.Loaded += async (s, ev) => await EscanearYCargarEquiposAsync();
+
+            win.Content = rootGrid;
             win.ShowDialog();
         }
 

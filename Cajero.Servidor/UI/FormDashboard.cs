@@ -127,12 +127,8 @@ namespace Cajero.Servidor.UI
 
         private void MostrarVentanaToken(string token, string user, string atm, DateTime exp)
         {
-            try
-            {
-                var fToken = new FormToken(token, user, atm, exp);
-                fToken.Show();
-            }
-            catch { }
+            // Sesión validada automáticamente en el panel unificado sin abrir ventanas emergentes adicionales
+            ActualizarDashboardSilencioso();
         }
 
         private void InicializarComponentes()
@@ -630,7 +626,7 @@ namespace Cajero.Servidor.UI
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Left = 760,
-                Width = 150,
+                Width = 145,
                 Height = 35,
                 Cursor = Cursors.Hand
             };
@@ -643,6 +639,22 @@ namespace Cajero.Servidor.UI
                 fMsg.ShowDialog();
             };
             pnlTopAcciones.Controls.Add(btnMsg);
+
+            var btnAsignarRed = new Button
+            {
+                Text = "🖥️ Asignar Cajero desde Equipos en Red",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                BackColor = Color.FromArgb(0, 168, 255),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 915,
+                Width = 250,
+                Height = 35,
+                Cursor = Cursors.Hand
+            };
+            btnAsignarRed.FlatAppearance.BorderSize = 0;
+            btnAsignarRed.Click += (s, e) => AbrirAsignarCajeroDesdeEquiposRed();
+            pnlTopAcciones.Controls.Add(btnAsignarRed);
 
             pnlMonitorCajeros.Controls.Add(pnlTopAcciones);
 
@@ -730,6 +742,265 @@ namespace Cajero.Servidor.UI
             await _servidorTcp.EnviarComandoAsync(cod, comando);
             ActualizarDashboardSilencioso();
             MessageBox.Show($"Cajero {cod} actualizado a '{nuevoEstado}'. Comando remoto enviado.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void AbrirAsignarCajeroDesdeEquiposRed()
+        {
+            var dal = new Cajerro.DAL.GestorArchivosCSV();
+            var infoRed = Cajerro.DAL.DescubridorRedBancaria.ObtenerInformacionRedActual();
+            int sigNum = dal.ObtenerCajerosRed().Count + 1;
+
+            var dlg = new Form
+            {
+                Text = "Asignar Cajero a partir de Equipos Detectados en Red",
+                Size = new Size(980, 620),
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.FromArgb(18, 22, 30),
+                ForeColor = Color.White,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false
+            };
+
+            var lblTitulo = new Label
+            {
+                Text = "🖥️ Equipos Conectados en la Red (Seleccione un equipo para asignarlo como Cajero)",
+                Font = new Font("Segoe UI", 12.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 200, 255),
+                Left = 20,
+                Top = 15,
+                Width = 720,
+                Height = 28
+            };
+            dlg.Controls.Add(lblTitulo);
+
+            var lblSub = new Label
+            {
+                Text = $"Escaneando red {infoRed.NombreRedSsid} ({infoRed.SubredCidr}) y VPN... | BD Maestra: {infoRed.IpLocal}:5000",
+                Font = new Font("Segoe UI", 9.5f),
+                ForeColor = Color.FromArgb(180, 200, 220),
+                Left = 20,
+                Top = 44,
+                Width = 720,
+                Height = 22
+            };
+            dlg.Controls.Add(lblSub);
+
+            var btnRefrescar = new Button
+            {
+                Text = "🔄 Escanear Equipos",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(0, 122, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Left = 770,
+                Top = 20,
+                Width = 175,
+                Height = 36,
+                Cursor = Cursors.Hand
+            };
+            btnRefrescar.FlatAppearance.BorderSize = 0;
+            dlg.Controls.Add(btnRefrescar);
+
+            var dgvEquipos = CrearGridGenerico();
+            dgvEquipos.Left = 20;
+            dgvEquipos.Top = 75;
+            dgvEquipos.Width = 925;
+            dgvEquipos.Height = 340;
+            dgvEquipos.Columns.Add("IP", "Dirección IP");
+            dgvEquipos.Columns.Add("NombreEquipo", "Nombre del Equipo (Hostname)");
+            dgvEquipos.Columns.Add("MAC", "Dirección MAC");
+            dgvEquipos.Columns.Add("Interfaz", "Red / Interfaz");
+            dgvEquipos.Columns.Add("Latencia", "Ping");
+            dgvEquipos.Columns.Add("Servicios", "Servicios / Puertos Activos");
+            dgvEquipos.Columns.Add("Estado", "Estado de Asignación");
+            dlg.Controls.Add(dgvEquipos);
+
+            var pnlForm = new Panel
+            {
+                Left = 20,
+                Top = 428,
+                Width = 925,
+                Height = 135,
+                BackColor = Color.FromArgb(26, 32, 44)
+            };
+
+            var lblInfoSel = new Label
+            {
+                Text = "👆 Seleccione un equipo de la tabla superior para autocompletar sus datos o ingréselos manualmente:",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(46, 213, 115),
+                Left = 15,
+                Top = 10,
+                Width = 890,
+                Height = 22
+            };
+            pnlForm.Controls.Add(lblInfoSel);
+
+            TextBox CrearInputWinForms(string label, string val, int left, int width)
+            {
+                pnlForm.Controls.Add(new Label
+                {
+                    Text = label,
+                    Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(190, 205, 225),
+                    Left = left,
+                    Top = 38,
+                    Width = width,
+                    Height = 18
+                });
+                var tb = new TextBox
+                {
+                    Text = val,
+                    Font = new Font("Segoe UI", 10.5f),
+                    BackColor = Color.FromArgb(16, 20, 28),
+                    ForeColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Left = left,
+                    Top = 58,
+                    Width = width
+                };
+                pnlForm.Controls.Add(tb);
+                return tb;
+            }
+
+            var txtCod = CrearInputWinForms("Código Cajero:", $"ATM-{sigNum:D2}", 15, 120);
+            var txtNom = CrearInputWinForms("Nombre / Equipo / Ubicación:", $"Cajero Remoto Sucursal {sigNum}", 145, 290);
+            var txtBan = CrearInputWinForms("Banco:", "BANC01", 445, 95);
+            var txtIp = CrearInputWinForms("IP del Equipo:", infoRed.IpLocal, 550, 145);
+
+            var btnGuardar = new Button
+            {
+                Text = "✅ Asignar Equipo como Cajero",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(46, 213, 115),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 710,
+                Top = 52,
+                Width = 200,
+                Height = 36,
+                Cursor = Cursors.Hand
+            };
+            btnGuardar.FlatAppearance.BorderSize = 0;
+            pnlForm.Controls.Add(btnGuardar);
+
+            dlg.Controls.Add(pnlForm);
+
+            List<Cajerro.DAL.Modelos.EquipoRedDetectado> listaActual = new();
+
+            dgvEquipos.SelectionChanged += (s, ev) =>
+            {
+                if (dgvEquipos.SelectedRows.Count > 0)
+                {
+                    int idx = dgvEquipos.SelectedRows[0].Index;
+                    if (idx >= 0 && idx < listaActual.Count)
+                    {
+                        var eq = listaActual[idx];
+                        txtIp.Text = eq.IP;
+                        if (eq.YaAsignadoComoCajero && !string.IsNullOrWhiteSpace(eq.CodigoCajeroAsignado))
+                        {
+                            txtCod.Text = eq.CodigoCajeroAsignado;
+                            txtNom.Text = eq.NombreCajeroAsignado;
+                            txtBan.Text = eq.CodigoBancoAsignado;
+                            lblInfoSel.Text = $"✏️ Editando cajero ya asignado al equipo {eq.NombreEquipo} ({eq.IP} | MAC: {eq.DireccionMac})";
+                        }
+                        else
+                        {
+                            int nuevoIdx = dal.ObtenerCajerosRed().Count + 1;
+                            txtCod.Text = $"ATM-{nuevoIdx:D2}";
+                            txtNom.Text = $"Cajero {eq.NombreEquipo} ({eq.InterfazRed})";
+                            txtBan.Text = "BANC01";
+                            lblInfoSel.Text = $"✅ Equipo seleccionado: {eq.NombreEquipo} | IP: {eq.IP} | MAC: {eq.DireccionMac} | Red: {eq.InterfazRed}";
+                        }
+                    }
+                }
+            };
+
+            btnGuardar.Click += (s, ev) =>
+            {
+                string cod = txtCod.Text.Trim().ToUpperInvariant();
+                string nom = txtNom.Text.Trim();
+                string ban = txtBan.Text.Trim().ToUpperInvariant();
+                string ip = txtIp.Text.Trim();
+
+                if (string.IsNullOrWhiteSpace(cod) || string.IsNullOrWhiteSpace(ip))
+                {
+                    MessageBox.Show("Seleccione un equipo de la red o ingrese el código del cajero y su dirección IP.", "Datos Incompletos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var cajeros = dal.ObtenerCajerosRed();
+                var ex = cajeros.FirstOrDefault(c => string.Equals(c.CodigoCajero, cod, StringComparison.OrdinalIgnoreCase));
+                if (ex != null)
+                {
+                    ex.NombreCajero = string.IsNullOrWhiteSpace(nom) ? ex.NombreCajero : nom;
+                    ex.CodigoBanco = string.IsNullOrWhiteSpace(ban) ? "BANC01" : ban;
+                    ex.IP = ip;
+                    ex.EnLinea = true;
+                    ex.UltimaConexionBdMaestra = DateTime.Now;
+                }
+                else
+                {
+                    cajeros.Add(new Cajerro.DAL.Modelos.CajeroRedInfo
+                    {
+                        CodigoCajero = cod,
+                        NombreCajero = string.IsNullOrWhiteSpace(nom) ? $"Cajero {cod}" : nom,
+                        CodigoBanco = string.IsNullOrWhiteSpace(ban) ? "BANC01" : ban,
+                        IP = ip,
+                        Puerto = 5000,
+                        EsLocal = string.Equals(ip, infoRed.IpLocal, StringComparison.OrdinalIgnoreCase),
+                        EnLinea = true,
+                        EfectivoActual = 10000m,
+                        UltimaConexionBdMaestra = DateTime.Now
+                    });
+                }
+
+                dal.GuardarCajerosRed(cajeros);
+                dal.RegistrarEnBitacora("Asignación Cajero Red", cod, $"Equipo {ip} asignado como cajero {cod} ({nom}) en la BD Maestra.");
+                ActualizarDashboardSilencioso();
+                dlg.Close();
+                MessageBox.Show($"¡El equipo {ip} ha sido asignado exitosamente como Cajero {cod} ({nom}) en la Base de Datos Maestra!", "Equipo Asignado como Cajero", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
+            async Task CargarEquiposAsync()
+            {
+                try
+                {
+                    btnRefrescar.Enabled = false;
+                    btnRefrescar.Text = "⏳ Escaneando...";
+                    lblSub.Text = $"Escaneando equipos activos en {infoRed.NombreRedSsid} ({infoRed.SubredCidr}) y VPN...";
+
+                    listaActual = await Cajerro.DAL.DescubridorRedBancaria.EscanearEquiposActivosEnRedAsync(dal);
+                    dgvEquipos.Rows.Clear();
+                    foreach (var eq in listaActual)
+                    {
+                        dgvEquipos.Rows.Add(
+                            eq.IP,
+                            eq.NombreEquipo,
+                            eq.DireccionMac,
+                            eq.InterfazRed,
+                            eq.LatenciaTexto,
+                            eq.ServiciosDetectados,
+                            eq.EstadoAsignacionTexto
+                        );
+                    }
+                    lblSub.Text = $"✅ {listaActual.Count} equipos detectados en la red ({listaActual.Count(x => !x.YaAsignadoComoCajero)} disponibles para asignar) | BD Maestra: {infoRed.IpLocal}:5000";
+                }
+                catch (Exception ex)
+                {
+                    lblSub.Text = $"Error al escanear: {ex.Message}";
+                }
+                finally
+                {
+                    btnRefrescar.Text = "🔄 Escanear Equipos";
+                    btnRefrescar.Enabled = true;
+                }
+            }
+
+            btnRefrescar.Click += async (s, ev) => await CargarEquiposAsync();
+            dlg.Shown += async (s, ev) => await CargarEquiposAsync();
+
+            dlg.ShowDialog(this);
         }
 
         #endregion

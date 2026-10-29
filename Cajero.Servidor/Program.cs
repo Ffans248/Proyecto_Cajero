@@ -11,6 +11,6 @@ namespace Cajero.Servidor
         {
             ApplicationConfiguration.Initialize();
             Application.Run(new FormLogin());
-        }    
+        }
     }
 }
