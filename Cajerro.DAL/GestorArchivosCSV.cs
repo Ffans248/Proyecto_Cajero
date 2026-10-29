@@ -137,6 +137,10 @@ namespace Cajerro.DAL
                     }
                 }
 
+                string ipMaestroActual = DescubridorRedBancaria.ObtenerInformacionRedActual().IpLocal;
+                if (string.IsNullOrWhiteSpace(ipMaestroActual) || ipMaestroActual == "127.0.0.1")
+                    ipMaestroActual = "10.219.19.9";
+
                 // 5. Inicialización de BancosRed.csv (Límites coordinados entre bancos)
                 if (!File.Exists(_rutaBancosRed))
                 {
@@ -144,10 +148,10 @@ namespace Cajerro.DAL
                     using (StreamWriter sw = new StreamWriter(_rutaBancosRed, append: false, Encoding.UTF8))
                     {
                         sw.WriteLine(EncabezadoBancosRed);
-                        sw.WriteLine($"BANC01,NEXUSBANK (Nuestro Banco),127.0.0.1,5000,true,25000.00,0.00,{hoy}");
-                        sw.WriteLine($"BANC02,Banco Industrial Estudiantil,192.168.1.102,5000,false,25000.00,0.00,{hoy}");
-                        sw.WriteLine($"BANC03,Banrural Red Universitaria,192.168.1.103,5000,false,20000.00,0.00,{hoy}");
-                        sw.WriteLine($"BANC04,Banco G&T Interbancario,192.168.1.104,5000,false,20000.00,0.00,{hoy}");
+                        sw.WriteLine($"BANC01,NEXUSBANK (Nodo Maestro BD - Este Equipo),{ipMaestroActual},5000,true,25000.00,0.00,{hoy},true");
+                        sw.WriteLine($"BANC02,Banco Industrial Estudiantil,10.219.19.12,5000,false,25000.00,0.00,{hoy},false");
+                        sw.WriteLine($"BANC03,Banrural Red Universitaria,10.219.19.13,5000,false,20000.00,0.00,{hoy},false");
+                        sw.WriteLine($"BANC04,Banco G&T Interbancario,10.219.19.14,5000,false,20000.00,0.00,{hoy},false");
                     }
                 }
 
@@ -188,7 +192,8 @@ namespace Cajerro.DAL
                     using (StreamWriter sw = new StreamWriter(_rutaCajerosRed, append: false, Encoding.UTF8))
                     {
                         sw.WriteLine(EncabezadoCajerosRed);
-                        sw.WriteLine($"ATM-01,Cajero Central Zona 1 (Maestro Local),BANC01,127.0.0.1,5000,true,true,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        sw.WriteLine($"ATM-01,Cajero Maestro Principal (Este Equipo - Wi-Fi),BANC01,{ipMaestroActual},5000,true,true,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                        sw.WriteLine($"ATM-01-VPN,Cajero Maestro Principal (Este Equipo - Radmin VPN),BANC01,26.121.70.247,5000,true,true,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                         sw.WriteLine($"ATM-02,Cajero Sucursal Norte,BANC01,10.219.19.12,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                         sw.WriteLine($"ATM-03,Cajero Campus Central,BANC02,10.219.19.13,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                         sw.WriteLine($"ATM-04,Cajero Plaza Sur,BANC03,10.219.19.14,5000,false,false,10000.00,{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
@@ -962,12 +967,19 @@ namespace Cajerro.DAL
                         decimal.TryParse(p[7].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal efec);
                         DateTime.TryParse(p[8].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime ultCon);
 
+                        string ipCaj = p[3].Trim();
+                        if (esLoc && (ipCaj == "127.0.0.1" || string.IsNullOrWhiteSpace(ipCaj)))
+                        {
+                            string ipReal = DescubridorRedBancaria.ObtenerInformacionRedActual().IpLocal;
+                            ipCaj = (!string.IsNullOrWhiteSpace(ipReal) && ipReal != "127.0.0.1") ? ipReal : "10.219.19.9";
+                        }
+
                         lista.Add(new CajeroRedInfo
                         {
                             CodigoCajero = p[0].Trim(),
                             NombreCajero = p[1].Trim(),
                             CodigoBanco = p[2].Trim(),
-                            IP = p[3].Trim(),
+                            IP = ipCaj,
                             Puerto = pto > 0 ? pto : 5000,
                             EsLocal = esLoc,
                             EnLinea = esLoc || enLin,
@@ -1052,12 +1064,18 @@ namespace Cajerro.DAL
                         }
 
                         bool enLinea = propio || (p.Length >= 9 && bool.TryParse(p[8].Trim(), out bool el) && el);
+                        string ipBan = p[2].Trim();
+                        if (propio && (ipBan == "127.0.0.1" || string.IsNullOrWhiteSpace(ipBan)))
+                        {
+                            string ipReal = DescubridorRedBancaria.ObtenerInformacionRedActual().IpLocal;
+                            ipBan = (!string.IsNullOrWhiteSpace(ipReal) && ipReal != "127.0.0.1") ? ipReal : "10.219.19.9";
+                        }
 
                         lista.Add(new BancoRedInfo
                         {
                             CodigoBanco = p[0].Trim(),
                             NombreBanco = p[1].Trim(),
-                            IP = p[2].Trim(),
+                            IP = ipBan,
                             Puerto = pto > 0 ? pto : 5000,
                             EsPropio = propio,
                             EnLinea = enLinea,
