@@ -18,6 +18,8 @@ namespace Cajero.UI
         private readonly ObservableCollection<TransaccionItem> _transacciones = new();
         private readonly ObservableCollection<BilleteItem> _stockBoveda = new();
         private readonly ObservableCollection<RegistroBitacora> _bitacora = new();
+        private readonly ObservableCollection<BancoRedVistaItem> _bancosRed = new();
+        private readonly ObservableCollection<TransferenciaBancariaVistaItem> _transferenciasBancarias = new();
         private Usuario? _usuarioModificacionActual;
         private readonly GestorArchivosCSV _dal;
         private readonly UsuarioLogica _usuarioLogica;
@@ -32,10 +34,13 @@ namespace Cajero.UI
             dgTransacciones.ItemsSource = _transacciones;
             lvStockBoveda.ItemsSource = _stockBoveda;
             dgBitacora.ItemsSource = _bitacora;
+            dgBancosRed.ItemsSource = _bancosRed;
+            dgTransferenciasBancarias.ItemsSource = _transferenciasBancarias;
 
             CargarStockBoveda();
             CargarTransacciones();
             CargarBitacora();
+            CargarRedInterbancaria();
             CargarDashboard();
             CargarValoresSugeridosInit();
         }
@@ -756,6 +761,101 @@ namespace Cajero.UI
 
         #endregion
 
+        #region =================== 6. RED INTERBANCARIA Y TOKENS ===================
+
+        private async void BtnEscanearRedAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            await EjecutarEscaneoRedAdminAsync(mostrarDialogo: true);
+        }
+
+        private async Task EjecutarEscaneoRedAdminAsync(bool mostrarDialogo)
+        {
+            try
+            {
+                if (btnEscanearRedAdmin != null)
+                {
+                    btnEscanearRedAdmin.IsEnabled = false;
+                    btnEscanearRedAdmin.Content = "⏳ Escaneando...";
+                }
+
+                var res = await DescubridorRedBancaria.EscanearRedYDetectarBancosAsync(_dal);
+                if (lblInfoRedAdmin != null)
+                    lblInfoRedAdmin.Text = $"📡 {res.ResumenRedCorto}  |  VPN/Otras: {res.InterfacesSecundarias}";
+                if (lblEstadoDeteccionAdmin != null)
+                    lblEstadoDeteccionAdmin.Text = res.ResumenDeteccionBancos;
+
+                CargarRedInterbancaria();
+
+                if (mostrarDialogo)
+                {
+                    string listaBancos = res.HayOtrosBancosConectados
+                        ? string.Join("\n", res.BancosDetectados.Select(b => $"  • {b.CodigoBanco} - {b.NombreBanco} ({b.IP}:{b.Puerto})"))
+                        : "  • Ningún otro banco activo fue detectado en esta red.";
+
+                    CustomMessageBox.Show(
+                        $"Red Conectada: {res.NombreRedSsid} ({res.TipoInterfaz})\n" +
+                        $"IP Local: {res.IpLocal} | Subred: {res.SubredCidr} | Gateway: {res.PuertaEnlace}\n" +
+                        $"Otras Interfaces: {res.InterfacesSecundarias}\n" +
+                        $"Hosts en LAN: {string.Join(", ", res.HostsActivosEnLan)}\n\n" +
+                        $"Bancos Detectados ({res.BancosDetectados.Count}):\n{listaBancos}",
+                        "Resultado de Escaneo de Red",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch { }
+            finally
+            {
+                if (btnEscanearRedAdmin != null)
+                {
+                    btnEscanearRedAdmin.Content = "📡 Escanear Red Local";
+                    btnEscanearRedAdmin.IsEnabled = true;
+                }
+            }
+        }
+
+        private void BtnActualizarInterbancario_Click(object sender, RoutedEventArgs e)
+        {
+            CargarRedInterbancaria();
+            CargarTransacciones();
+            CargarBitacora();
+        }
+
+        private void BtnReiniciarCuposBancos_Click(object sender, RoutedEventArgs e)
+        {
+            _dal.ReiniciarCuposDiariosBancos();
+            CargarRedInterbancaria();
+            CargarBitacora();
+            CustomMessageBox.Show(
+                "Los límites diarios de todos los bancos en la red han sido reiniciados a Q 0.00 transferidos hoy.",
+                "Cupos Interbancarios Reiniciados",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        public void CargarRedInterbancaria()
+        {
+            var infoRed = DescubridorRedBancaria.ObtenerInformacionRedActual();
+            if (lblInfoRedAdmin != null && lblInfoRedAdmin.Text.Contains("Detectando"))
+            {
+                lblInfoRedAdmin.Text = $"📡 {infoRed.ResumenRedCorto}  |  VPN/Otras: {infoRed.InterfacesSecundarias}";
+            }
+
+            _bancosRed.Clear();
+            foreach (var b in _dal.ObtenerBancosRed())
+            {
+                _bancosRed.Add(new BancoRedVistaItem(b));
+            }
+
+            _transferenciasBancarias.Clear();
+            foreach (var t in _dal.ObtenerTransferenciasCompartidas())
+            {
+                _transferenciasBancarias.Add(new TransferenciaBancariaVistaItem(t));
+            }
+        }
+
+        #endregion
+
         private void BtnCerrar_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
@@ -763,12 +863,58 @@ namespace Cajero.UI
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Evento al cargar la ventana
+            _ = EjecutarEscaneoRedAdminAsync(mostrarDialogo: false);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Evento al cerrar la ventana
+        }
+    }
+
+    public class BancoRedVistaItem
+    {
+        public string CodigoBanco { get; set; }
+        public string NombreBanco { get; set; }
+        public string EndpointTexto { get; set; }
+        public string EstadoRedTexto { get; set; }
+        public string RolTexto { get; set; }
+        public string LimiteFormat { get; set; }
+        public string TransferidoFormat { get; set; }
+        public string DisponibleFormat { get; set; }
+
+        public BancoRedVistaItem(BancoRedInfo b)
+        {
+            CodigoBanco = b.CodigoBanco;
+            NombreBanco = b.NombreBanco;
+            EndpointTexto = b.EndpointTexto;
+            EstadoRedTexto = b.EstadoRedTexto;
+            RolTexto = b.RolTexto;
+            LimiteFormat = $"Q {b.LimiteDiario:N2}";
+            TransferidoFormat = $"Q {b.TransferidoHoy:N2}";
+            DisponibleFormat = $"Q {b.DisponibleHoy:N2}";
+        }
+    }
+
+    public class TransferenciaBancariaVistaItem
+    {
+        public string TokenTransferencia { get; set; }
+        public string FechaFormat { get; set; }
+        public string TipoTransferencia { get; set; }
+        public string OrigenFormat { get; set; }
+        public string DestinoFormat { get; set; }
+        public string MontoFormat { get; set; }
+        public string CuposFormat { get; set; }
+
+        public TransferenciaBancariaVistaItem(RegistroTransferenciaBancaria r)
+        {
+            TokenTransferencia = r.TokenTransferencia;
+            FechaFormat = r.FechaHora.ToString("dd/MM/yyyy HH:mm:ss");
+            TipoTransferencia = r.TipoTransferencia;
+            OrigenFormat = $"{r.BancoOrigen} | {r.CuentaOrigen} ({r.NombreOrigen})";
+            DestinoFormat = $"{r.BancoDestino} | {r.CuentaDestino} ({r.NombreDestino})";
+            MontoFormat = $"Q {r.Monto:N2}";
+            CuposFormat = $"Nuestro: Q {r.CupoRestanteBancoOrigen:N2} | Destino: Q {r.CupoRestanteBancoDestino:N2}";
         }
     }
 

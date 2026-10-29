@@ -50,6 +50,15 @@ namespace Cajero.UI
             MostrarVistaCliente();
         }
 
+        private void BtnNavTransferencias_Click(object sender, RoutedEventArgs e)
+        {
+            var trfWin = new TransferenciaWindow(_rfidToken, false)
+            {
+                Owner = this
+            };
+            trfWin.ShowDialog();
+        }
+
         private void MostrarVistaAdmin()
         {
             viewAdmin.Visibility = Visibility.Visible;
@@ -95,10 +104,25 @@ namespace Cajero.UI
                 }
                 else if (operacion == "Deposito")
                 {
-                    // Abrimos la nueva ventana de Depósitos
                     DepositoWindow depositoWin = new DepositoWindow(_rfidToken);
                     depositoWin.Owner = this;
                     depositoWin.ShowDialog();
+                }
+                else if (operacion == "TransferenciaInterna")
+                {
+                    TransferenciaWindow trfWin = new TransferenciaWindow(_rfidToken, false)
+                    {
+                        Owner = this
+                    };
+                    trfWin.ShowDialog();
+                }
+                else if (operacion == "TransferenciaInterbancaria")
+                {
+                    TransferenciaWindow trfWin = new TransferenciaWindow(_rfidToken, true)
+                    {
+                        Owner = this
+                    };
+                    trfWin.ShowDialog();
                 }
                 else if (operacion == "ConsultaSaldo")
                 {

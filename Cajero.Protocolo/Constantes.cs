@@ -13,6 +13,15 @@ namespace Cajero.Protocolo
         public const string CajeroFueraDeServicioONoInicializado = "91";
         public const string ErrorDelSistema = "96";
 
+        // Códigos de Transferencias (internas e interbancarias)
+        public const string TransaccionInvalida = "12";
+        public const string CuentaInexistente = "14";
+        public const string TokenNoEncontrado = "25";
+        public const string BancoNoAutorizado = "58";
+        public const string ExcedeCupoInterbancario = "65";
+        public const string BancoDestinoSinRespuesta = "68";
+        public const string TransaccionDuplicada = "94";
+
         public static string ObtenerDescripcion(string codigo) => codigo switch
         {
             Aprobado => "Operación aprobada",
@@ -25,6 +34,13 @@ namespace Cajero.Protocolo
             ExcedeCapacidadCajero => "Excede la capacidad de efectivo del cajero (Q 30,000.00)",
             CajeroFueraDeServicioONoInicializado => "Cajero fuera de servicio o no inicializado",
             ErrorDelSistema => "Error del sistema; la operación no se aplicó",
+            TransaccionInvalida => "Transacción inválida",
+            CuentaInexistente => "La cuenta no existe o está inactiva",
+            TokenNoEncontrado => "No se encontró una transferencia con ese token",
+            BancoNoAutorizado => "Banco no registrado o no autorizado",
+            ExcedeCupoInterbancario => "Excede el cupo diario interbancario de los bancos",
+            BancoDestinoSinRespuesta => "El banco destino no respondió o rechazó la conexión",
+            TransaccionDuplicada => "Token de transferencia duplicado",
             _ => "Código desconocido"
         };
     }
@@ -43,6 +59,32 @@ namespace Cajero.Protocolo
         public const string Logout = "LOGOUT";
         public const string Respuesta = "RESPUESTA";
         public const string Comando = "COMANDO";
+
+        // Transferencias (Cajero -> Servidor)
+        public const string ListarBancos = "LISTAR_BANCOS";
+        public const string VerificarCuenta = "VERIFICAR_CUENTA";
+        public const string Transferencia = "TRANSFERENCIA";
+    }
+
+    /// <summary>
+    /// Mensajes del protocolo común Banco ↔ Banco (TCP JSON por línea).
+    /// </summary>
+    public static class TiposMensajeInterbancario
+    {
+        public const string Ping = "IB_PING";
+        public const string VerificarCuenta = "IB_VERIFICAR_CUENTA";
+        public const string Transferir = "IB_TRANSFERIR";
+        public const string Consultar = "IB_CONSULTAR";
+        public const string Revertir = "IB_REVERTIR";
+    }
+
+    public static class EstadosTransferencia
+    {
+        public const string Pendiente = "PENDIENTE";
+        public const string Completada = "COMPLETADA";
+        public const string Rechazada = "RECHAZADA";
+        public const string Revertida = "REVERTIDA";
+        public const string Anulada = "ANULADA";
     }
 
     public static class TiposComando

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -139,7 +140,15 @@ namespace Cajero.Servidor.Comunicaciones
                         _repo.RegistrarEnBitacora("Servidor", "Sesión Expirada", $"Sesión de usuario expirada por inactividad (2 min) en {infoCliente.CodigoCajero}");
                     }
 
-                    MensajeRespuesta respuesta = ProcesarMensaje(linea, baseMsg, ipCliente, tcpClient, stream, writer, ref infoCliente);
+                    MensajeRespuesta? respuesta = await ProcesarMensajeAsync(linea, baseMsg, ipCliente, tcpClient, stream, writer, infoCliente);
+                    if (baseMsg.Tipo == TiposMensaje.RegistrarCajero && respuesta?.Codigo == CodigosRespuesta.Aprobado)
+                    {
+                        var reqReg = ProtocoloHelper.Deserializar<SolicitudRegistroCajero>(linea);
+                        if (reqReg != null && _clientesConectados.TryGetValue(reqReg.Codigo, out var registrado))
+                        {
+                            infoCliente = registrado;
+                        }
+                    }
 
                     if (respuesta != null)
                     {
@@ -167,14 +176,14 @@ namespace Cajero.Servidor.Comunicaciones
             }
         }
 
-        private MensajeRespuesta ProcesarMensaje(
+        private async Task<MensajeRespuesta> ProcesarMensajeAsync(
             string jsonCrudo,
             MensajeBase baseMsg,
             string ipCliente,
             TcpClient tcpClient,
             NetworkStream stream,
             StreamWriter writer,
-            ref ClienteConectado? infoCliente)
+            ClienteConectado? infoCliente)
         {
             var respuesta = new MensajeRespuesta
             {
@@ -194,7 +203,7 @@ namespace Cajero.Servidor.Comunicaciones
 
                         if (cod == CodigosRespuesta.Aprobado)
                         {
-                            infoCliente = new ClienteConectado
+                            var nuevoCliente = new ClienteConectado
                             {
                                 CodigoCajero = req.Codigo,
                                 NombreEquipo = req.NombreEquipo,
@@ -204,7 +213,7 @@ namespace Cajero.Servidor.Comunicaciones
                                 Writer = writer,
                                 UltimoHeartbeat = DateTime.Now
                             };
-                            _clientesConectados[req.Codigo] = infoCliente;
+                            _clientesConectados[req.Codigo] = nuevoCliente;
                             CajeroConectado?.Invoke(req.Codigo, ipCliente);
                         }
                         break;
@@ -226,7 +235,6 @@ namespace Cajero.Servidor.Comunicaciones
                         else if (_clientesConectados.TryGetValue(req.Codigo, out var cli))
                         {
                             cli.UltimoHeartbeat = DateTime.Now;
-                            infoCliente = cli;
                         }
                         break;
                     }
@@ -294,7 +302,10 @@ namespace Cajero.Servidor.Comunicaciones
 
                         if (cod == CodigosRespuesta.Aprobado)
                         {
+                            var (_, numeroCuenta, _, _, _) = _repo.ConsultaSaldo(req.Cajero, tarjeta);
+                            var (codBanco, nomBanco) = _repo.ObtenerInfoBancoPropio();
                             string tokenSesion = Guid.NewGuid().ToString("N");
+
                             respuesta.Datos = new DatosValidarToken
                             {
                                 IdUsuario = idUsuario,
@@ -302,6 +313,9 @@ namespace Cajero.Servidor.Comunicaciones
                                 Saldo = saldo,
                                 LimiteDiario = limite,
                                 DisponibleHoy = disponible,
+                                NumeroCuenta = numeroCuenta,
+                                CodigoBanco = codBanco,
+                                NombreBanco = nomBanco,
                                 TokenSesion = tokenSesion
                             };
 
@@ -404,12 +418,13 @@ namespace Cajero.Servidor.Comunicaciones
                             tarjeta = infoCliente.NumeroTarjetaSesion;
                         }
 
-                        var (nom, saldo, lim, disp) = _repo.ConsultaSaldo(req.Cajero, tarjeta);
+                        var (nom, cta, saldo, lim, disp) = _repo.ConsultaSaldo(req.Cajero, tarjeta);
                         respuesta.Codigo = CodigosRespuesta.Aprobado;
                         respuesta.Mensaje = "Consulta de saldo exitosa.";
                         respuesta.Datos = new DatosConsultaSaldo
                         {
                             NombreUsuario = nom,
+                            NumeroCuenta = cta,
                             Saldo = saldo,
                             LimiteDiario = lim,
                             DisponibleHoy = disp
@@ -436,6 +451,177 @@ namespace Cajero.Servidor.Comunicaciones
                         respuesta.Datos = new DatosUltimasTransacciones { Transacciones = lista };
 
                         if (infoCliente != null) infoCliente.UltimaActividadUsuario = DateTime.Now;
+                        break;
+                    }
+
+                case TiposMensaje.ListarBancos:
+                    {
+                        var bancosDto = _repo.ObtenerBancosRed(true);
+                        var (codPropio, nomPropio) = _repo.ObtenerInfoBancoPropio();
+
+                        var items = bancosDto.Select(b => new ItemBancoProtocolo
+                        {
+                            CodigoBanco = b.CodigoBanco,
+                            NombreBanco = b.NombreBanco,
+                            EsPropio = b.EsPropio,
+                            LimiteDiario = b.LimiteDiario,
+                            DisponibleHoy = b.DisponibleHoy,
+                            Activo = b.Activo
+                        }).ToList();
+
+                        respuesta.Codigo = CodigosRespuesta.Aprobado;
+                        respuesta.Mensaje = "Catálogo de bancos obtenido.";
+                        respuesta.Datos = new DatosListarBancos
+                        {
+                            Bancos = items,
+                            CodigoBancoPropio = codPropio,
+                            NombreBancoPropio = nomPropio
+                        };
+                        if (infoCliente != null) infoCliente.UltimaActividadUsuario = DateTime.Now;
+                        break;
+                    }
+
+                case TiposMensaje.VerificarCuenta:
+                    {
+                        var req = ProtocoloHelper.Deserializar<SolicitudVerificarCuenta>(jsonCrudo);
+                        if (req == null) return ErrorRespuesta(baseMsg.IdSolicitud, CodigosRespuesta.ErrorDelSistema, "Formato JSON inválido");
+
+                        var (cod, msj, datos) = await _repo.VerificarCuentaDestinoAsync(req.BancoDestino, req.CuentaDestino);
+                        respuesta.Codigo = cod;
+                        respuesta.Mensaje = msj;
+                        respuesta.Datos = datos;
+
+                        if (infoCliente != null) infoCliente.UltimaActividadUsuario = DateTime.Now;
+                        break;
+                    }
+
+                case TiposMensaje.Transferencia:
+                    {
+                        var req = ProtocoloHelper.Deserializar<SolicitudTransferencia>(jsonCrudo);
+                        if (req == null) return ErrorRespuesta(baseMsg.IdSolicitud, CodigosRespuesta.ErrorDelSistema, "Formato JSON inválido");
+
+                        string tarjeta = req.NumeroTarjeta.Trim();
+                        if (tarjeta.Length != 16)
+                        {
+                            if (infoCliente?.NumeroTarjetaSesion != null)
+                            {
+                                tarjeta = infoCliente.NumeroTarjetaSesion;
+                            }
+                            else
+                            {
+                                string? mapeada = _repo.ObtenerTarjetaPorRfid(tarjeta);
+                                if (!string.IsNullOrEmpty(mapeada)) tarjeta = mapeada;
+                            }
+                        }
+
+                        var (cod, msj, datos) = await _repo.EjecutarTransferenciaAsync(
+                            req.Cajero,
+                            tarjeta,
+                            req.EsInterbancaria,
+                            req.BancoDestino,
+                            req.CuentaDestino,
+                            req.Monto,
+                            req.Concepto);
+
+                        respuesta.Codigo = cod;
+                        respuesta.Mensaje = msj;
+                        respuesta.Datos = datos;
+
+                        if (infoCliente != null) infoCliente.UltimaActividadUsuario = DateTime.Now;
+
+                        TransaccionProcesada?.Invoke(
+                            req.Cajero,
+                            req.EsInterbancaria ? "TRANSFERENCIA_INTERBANCARIA" : "TRANSFERENCIA_ENVIADA",
+                            req.Monto,
+                            cod);
+                        break;
+                    }
+
+                // =========================================================================
+                // PROTOCOLO INTERBANCARIO ESTÁNDAR (Mensajes recibidos desde OTROS BANCOS)
+                // =========================================================================
+
+                case TiposMensajeInterbancario.Ping:
+                    {
+                        var (codPropio, nomPropio) = _repo.ObtenerInfoBancoPropio();
+                        respuesta.Codigo = CodigosRespuesta.Aprobado;
+                        respuesta.Mensaje = $"PONG desde {codPropio} ({nomPropio})";
+                        break;
+                    }
+
+                case TiposMensajeInterbancario.VerificarCuenta:
+                    {
+                        var req = ProtocoloHelper.Deserializar<SolicitudIbVerificarCuenta>(jsonCrudo);
+                        if (req == null) return ErrorRespuesta(baseMsg.IdSolicitud, CodigosRespuesta.ErrorDelSistema, "Formato JSON inválido");
+
+                        var (codPropio, nomPropio) = _repo.ObtenerInfoBancoPropio();
+                        var bancos = _repo.ObtenerBancosRed(true);
+                        var infoPropio = bancos.FirstOrDefault(b => b.EsPropio);
+                        decimal cupoDisp = infoPropio?.DisponibleHoy ?? 50000m;
+
+                        var (existe, _, numCuenta, _, nombreTitular) = _repo.VerificarCuentaLocal(req.NumeroCuenta);
+                        if (!existe)
+                        {
+                            respuesta.Codigo = CodigosRespuesta.CuentaInexistente;
+                            respuesta.Mensaje = $"La cuenta '{req.NumeroCuenta}' no existe o está inactiva en {nomPropio}.";
+                            respuesta.Datos = new DatosIbVerificarCuenta
+                            {
+                                Existe = false,
+                                NumeroCuenta = req.NumeroCuenta,
+                                Banco = codPropio,
+                                NombreBanco = nomPropio,
+                                CupoDisponibleBanco = cupoDisp
+                            };
+                        }
+                        else
+                        {
+                            respuesta.Codigo = CodigosRespuesta.Aprobado;
+                            respuesta.Mensaje = "Cuenta activa verificada.";
+                            respuesta.Datos = new DatosIbVerificarCuenta
+                            {
+                                Existe = true,
+                                NumeroCuenta = numCuenta,
+                                NombreTitular = nombreTitular,
+                                Banco = codPropio,
+                                NombreBanco = nomPropio,
+                                Moneda = "GTQ",
+                                CupoDisponibleBanco = cupoDisp
+                            };
+                        }
+                        break;
+                    }
+
+                case TiposMensajeInterbancario.Transferir:
+                    {
+                        var req = ProtocoloHelper.Deserializar<SolicitudIbTransferir>(jsonCrudo);
+                        if (req == null) return ErrorRespuesta(baseMsg.IdSolicitud, CodigosRespuesta.ErrorDelSistema, "Formato JSON inválido");
+
+                        var (cod, msj, datos) = _repo.RecibirTransferenciaInterbancariaEntrante(req);
+                        respuesta.Codigo = cod;
+                        respuesta.Mensaje = msj;
+                        respuesta.Datos = datos;
+
+                        TransaccionProcesada?.Invoke("RED-IB", "TRANSFERENCIA_RECIBIDA", req.Monto, cod);
+                        break;
+                    }
+
+                case TiposMensajeInterbancario.Consultar:
+                    {
+                        var req = ProtocoloHelper.Deserializar<SolicitudIbConsultar>(jsonCrudo);
+                        if (req == null) return ErrorRespuesta(baseMsg.IdSolicitud, CodigosRespuesta.ErrorDelSistema, "Formato JSON inválido");
+
+                        var trf = _repo.ConsultarTransferenciaPorToken(req.TokenTransferencia);
+                        if (trf == null)
+                        {
+                            respuesta.Codigo = CodigosRespuesta.TokenNoEncontrado;
+                            respuesta.Mensaje = $"No se encontró transferencia con token '{req.TokenTransferencia}'.";
+                        }
+                        else
+                        {
+                            respuesta.Codigo = CodigosRespuesta.Aprobado;
+                            respuesta.Mensaje = $"Estado de transferencia {trf.TokenTransferencia}: {trf.Estado}";
+                            respuesta.Datos = trf;
+                        }
                         break;
                     }
 

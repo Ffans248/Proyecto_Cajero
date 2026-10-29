@@ -6,8 +6,8 @@
         xmlns:local="clr-namespace:Cajero.UI"
         mc:Ignorable="d"
         Title="Cajero Automático - Plataforma Principal" 
-        Height="700" Width="1080"
-        MinHeight="600" MinWidth="850"
+        Height="740" Width="1100"
+        MinHeight="620" MinWidth="880"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgPrimaryBrush}">
 
@@ -50,7 +50,7 @@
                             Click="BtnCerrarSesion_Click"/>
                 </StackPanel>
                 <TextBlock Text="CAJERO AUTOMÁTICO" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Grid.Column="1" Margin="10,-1,366,19"/>
-                <TextBlock Text="Terminal Bancario #04 - Red Central" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Grid.Column="1" Margin="10,19,366,5"/>
+                <TextBlock Text="Terminal Bancario #04 - Red Central e Interbancaria" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Grid.Column="1" Margin="10,19,366,5"/>
             </Grid>
         </Border>
 
@@ -77,6 +77,11 @@
                                 Style="{StaticResource NavMenuButton}" 
                                 Click="BtnNavCliente_Click"/>
 
+                        <Button x:Name="btnNavTransferenciasMenu" 
+                                Content="Transferencias Bancarias" 
+                                Style="{StaticResource NavMenuButton}" 
+                                Click="BtnNavTransferencias_Click"/>
+
                         <Button x:Name="btnNavAdmin" 
                                 Content="Panel Administrador" 
                                 Style="{StaticResource NavMenuButton}" 
@@ -91,7 +96,7 @@
                     <StackPanel MaxWidth="850" HorizontalAlignment="Stretch">
 
                         <TextBlock Text="Centro de Control de Administración" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Gestión general del cajero, usuarios autorizados y auditoría de transacciones." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,24"/>
+                        <TextBlock Text="Gestión general del cajero, usuarios autorizados, red interbancaria y auditoría de transacciones." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,24"/>
 
                         <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="24" Margin="0,0,0,20">
                             <Grid>
@@ -101,8 +106,8 @@
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="Gestión de Usuarios y Transacciones" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="Registre nuevos clientes con límite diario y audite el DataGrid de transacciones en tiempo real." 
+                                    <TextBlock Text="Gestión de Usuarios, Red Interbancaria y Transacciones" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Registre clientes, coordine límites diarios entre bancos y audite las transferencias y tokens generados." 
                                                FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
 
@@ -113,6 +118,42 @@
                                         VerticalAlignment="Center" 
                                         Margin="20,0,0,0"
                                         Click="BtnAbrirVentanaAdmin_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Acceso directo desde Admin a Transferencias entre Usuarios e Interbancarias -->
+                        <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="24" Margin="0,0,0,20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Módulo de Transferencias entre Usuarios e Interbancarias" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Realice transferencias internas o hacia otros bancos verificando cuenta, token único y límite coordinado." 
+                                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" 
+                                        Content="Entre Usuarios" 
+                                        Style="{StaticResource OutlineButton}" 
+                                        Height="40" 
+                                        Padding="14,0"
+                                        VerticalAlignment="Center" 
+                                        Margin="12,0,8,0"
+                                        Click="BtnOperacionCliente_Click"
+                                        Tag="TransferenciaInterna"/>
+
+                                <Button Grid.Column="2" 
+                                        Content="Otros Bancos" 
+                                        Style="{StaticResource PrimaryButton}" 
+                                        Height="40" 
+                                        Padding="14,0"
+                                        VerticalAlignment="Center" 
+                                        Click="BtnOperacionCliente_Click"
+                                        Tag="TransferenciaInterbancaria"/>
                             </Grid>
                         </Border>
 
@@ -127,15 +168,15 @@
                                 <StackPanel>
                                     <TextBlock Text="Estado Terminal" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
                                     <TextBlock Text="Operativo" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,4,0,0"/>
-                                    <TextBlock Text="Gaveta de efectivo lista" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                    <TextBlock Text="Gaveta y red interbancaria listas" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="18" Margin="5,0,5,0">
                                 <StackPanel>
-                                    <TextBlock Text="Transacciones Hoy" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
-                                    <TextBlock Text="Control Diario" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,0"/>
-                                    <TextBlock Text="Auditoría visual activa" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                    <TextBlock Text="Transferencias y Tokens" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="Cupo Coordinado" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,0"/>
+                                    <TextBlock Text="Nuestro banco + otro banco + usuario" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -154,10 +195,11 @@
                     <StackPanel MaxWidth="850" HorizontalAlignment="Stretch">
 
                         <TextBlock Text="Bienvenido al Cajero Automático" FontSize="24" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Seleccione la operación bancaria que desea realizar." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,24"/>
+                        <TextBlock Text="Seleccione la operación bancaria o transferencia que desea realizar." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,24"/>
 
                         <Grid>
                             <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -183,7 +225,24 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,10,0">
+                            <!-- NUEVA FILA: TRANSFERENCIA ENTRE USUARIOS Y TRANSFERENCIA INTERBANCARIA -->
+                            <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource AccentPrimaryBrush}" BorderThickness="1.5" CornerRadius="12" Padding="20" Margin="0,0,10,14">
+                                <StackPanel>
+                                    <TextBlock Text="Transferencia entre Usuarios" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Transfiera fondos a otro usuario de nuestro banco generando token de registro." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16" TextWrapping="Wrap"/>
+                                    <Button Content="Transferir a Usuario (Mismo Banco)" Style="{StaticResource PrimaryButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="TransferenciaInterna"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource AccentSuccessBrush}" BorderThickness="1.5" CornerRadius="12" Padding="20" Margin="10,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Transferencia entre Diferentes Bancos" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Verifique cuenta en otro banco, coordine límite de ambos bancos y guarde token." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16" TextWrapping="Wrap"/>
+                                    <Button Content="Transferencia Interbancaria" Style="{StaticResource SuccessButton}" Height="38" Click="BtnOperacionCliente_Click" Tag="TransferenciaInterbancaria"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="2" Grid.Column="0" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,10,0">
                                 <StackPanel>
                                     <TextBlock Text="Depósito a Cuenta" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Ingrese efectivo para acreditar fondos a su cuenta." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
@@ -191,7 +250,7 @@
                                 </StackPanel>
                             </Border>
                             
-                            <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="10,0,0,0">
+                            <Border Grid.Row="2" Grid.Column="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="10,0,0,0">
                                 <StackPanel>
                                     <TextBlock Text="Cambio de Clave PIN" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                                     <TextBlock Text="Actualice su código de seguridad de 4 dígitos." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,16"/>
@@ -199,15 +258,15 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,14,0,0">
+                            <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,14,0,0">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                        <TextBlock Text="Últimas Transacciones" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="Consulte los últimos 5 movimientos y tokens generados en su cuenta." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                        <TextBlock Text="Últimas Transacciones y Tokens de Transferencia" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Consulte los últimos movimientos y los tokens de transferencia guardados en su cuenta." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                                     </StackPanel>
                                     <Button Grid.Column="1" Content="Ver Transacciones" Style="{StaticResource OutlineButton}" Height="38" Padding="18,0" Click="BtnOperacionCliente_Click" Tag="UltimasTransacciones"/>
                                 </Grid>

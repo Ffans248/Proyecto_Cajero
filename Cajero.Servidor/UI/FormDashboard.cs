@@ -33,6 +33,7 @@ namespace Cajero.Servidor.UI
         private Panel pnlResumen = null!;
         private Panel pnlMonitorCajeros = null!;
         private Panel pnlTransacciones = null!;
+        private Panel pnlInterbancario = null!;
         private Panel pnlUsuarios = null!;
         private Panel pnlConsultasFase1 = null!;
         private Panel pnlAlertas = null!;
@@ -47,6 +48,8 @@ namespace Cajero.Servidor.UI
         // Grids
         private DataGridView dgvCajeros = null!;
         private DataGridView dgvTransacciones = null!;
+        private DataGridView dgvBancosRed = null!;
+        private DataGridView dgvTransferencias = null!;
         private DataGridView dgvUsuarios = null!;
         private DataGridView dgvAlertas = null!;
         private DataGridView dgvBitacora = null!;
@@ -63,6 +66,9 @@ namespace Cajero.Servidor.UI
         private ComboBox cbFiltroCajeroTx = null!;
         private ComboBox cbFiltroTipoTx = null!;
         private TextBox txtFiltroUsuarioTx = null!;
+
+        // Filtro de transferencias
+        private TextBox txtFiltroTokenTransferencia = null!;
 
         // Consultas Fase 1
         private TextBox txtConsultaUsuario = null!;
@@ -132,8 +138,8 @@ namespace Cajero.Servidor.UI
         private void InicializarComponentes()
         {
             this.Text = $"Panel de Control Central - Cajeros Automáticos (.NET 8) [{_admin.Usuario} - {_admin.Rol}]";
-            this.Size = new Size(1300, 800);
-            this.MinimumSize = new Size(1150, 700);
+            this.Size = new Size(1340, 820);
+            this.MinimumSize = new Size(1180, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(18, 22, 30);
             this.ForeColor = Color.White;
@@ -153,18 +159,19 @@ namespace Cajero.Servidor.UI
                 ForeColor = Color.FromArgb(0, 200, 255),
                 Left = 240,
                 Top = 16,
-                Width = 350
+                Width = 380
             };
             pnlHeader.Controls.Add(lblTituloModulo);
 
+            var infoPropio = _repo.ObtenerInfoBancoPropio();
             lblEstadoServidor = new Label
             {
-                Text = $"🟢 Servidor TCP: Puerto {_servidorTcp.Puerto} (En Línea)",
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Text = $"🟢 Servidor TCP: Puerto {_servidorTcp.Puerto} | {infoPropio.codigoBanco} ({infoPropio.nombreBanco})",
+                Font = new Font("Segoe UI", 9.2f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(46, 213, 115),
-                Left = 600,
+                Left = 620,
                 Top = 22,
-                Width = 280
+                Width = 310
             };
             pnlHeader.Controls.Add(lblEstadoServidor);
 
@@ -176,7 +183,7 @@ namespace Cajero.Servidor.UI
                 BackColor = Color.FromArgb(0, 122, 255),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Left = 900,
+                Left = 940,
                 Top = 14,
                 Width = 150,
                 Height = 36,
@@ -191,9 +198,9 @@ namespace Cajero.Servidor.UI
                 Text = $"👤 {_admin.Usuario}\n({_admin.Rol})",
                 Font = new Font("Segoe UI", 9f),
                 ForeColor = Color.FromArgb(200, 215, 230),
-                Left = 1080,
+                Left = 1100,
                 Top = 14,
-                Width = 180,
+                Width = 190,
                 TextAlign = ContentAlignment.MiddleRight
             };
             pnlHeader.Controls.Add(lblAdminInfo);
@@ -223,7 +230,8 @@ namespace Cajero.Servidor.UI
             AgregarBotonMenu("📊 Resumen General", () => MostrarModulo(pnlResumen, "📊 Resumen General del Día"), ref btnY);
             AgregarBotonMenu("🖥️ Monitor Cajeros", () => MostrarModulo(pnlMonitorCajeros, "🖥️ Monitor en Tiempo Real de Cajeros"), ref btnY);
             AgregarBotonMenu("💳 Transacciones", () => MostrarModulo(pnlTransacciones, "💳 Transacciones en Tiempo Real"), ref btnY);
-            AgregarBotonMenu("👥 Gestión Usuarios", () => MostrarModulo(pnlUsuarios, "👥 Gestión de Usuarios y Tarjetas"), ref btnY);
+            AgregarBotonMenu("🏦 Red Interbancaria", () => MostrarModulo(pnlInterbancario, "🏦 Red Interbancaria, Cupos y Tokens"), ref btnY);
+            AgregarBotonMenu("👥 Gestión Usuarios", () => MostrarModulo(pnlUsuarios, "👥 Gestión de Usuarios, Cuentas y Tarjetas"), ref btnY);
             AgregarBotonMenu("🔍 Consultas Fase I", () => MostrarModulo(pnlConsultasFase1, "🔍 Consultas y Control de Usuarios (Fase I)"), ref btnY);
             AgregarBotonMenu("⚠️ Panel Alertas", () => MostrarModulo(pnlAlertas, "⚠️ Alertas del Sistema y Notificaciones"), ref btnY);
             AgregarBotonMenu("📜 Bitácora Auditoría", () => MostrarModulo(pnlBitacora, "📜 Bitácora de Auditoría del Servidor"), ref btnY);
@@ -254,11 +262,13 @@ namespace Cajero.Servidor.UI
                 BackColor = Color.FromArgb(20, 24, 33)
             };
             this.Controls.Add(pnlContenido);
+            pnlContenido.BringToFront();
 
             // Crear los módulos individuales
             ConstruirModuloResumen();
             ConstruirModuloMonitorCajeros();
             ConstruirModuloTransacciones();
+            ConstruirModuloInterbancario();
             ConstruirModuloUsuarios();
             ConstruirModuloConsultasFase1();
             ConstruirModuloAlertas();
@@ -286,14 +296,14 @@ namespace Cajero.Servidor.UI
                 Top = y,
                 Left = 0,
                 Width = 225,
-                Height = 42,
+                Height = 40,
                 Cursor = Cursors.Hand
             };
             btn.FlatAppearance.BorderSize = 0;
             btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(32, 40, 56);
             btn.Click += (s, e) => accion();
             pnlSidebar.Controls.Add(btn);
-            y += 44;
+            y += 42;
         }
 
         private void MostrarModulo(Panel panel, string titulo)
@@ -302,6 +312,7 @@ namespace Cajero.Servidor.UI
             pnlResumen.Visible = false;
             pnlMonitorCajeros.Visible = false;
             pnlTransacciones.Visible = false;
+            pnlInterbancario.Visible = false;
             pnlUsuarios.Visible = false;
             pnlConsultasFase1.Visible = false;
             pnlAlertas.Visible = false;
@@ -349,12 +360,14 @@ namespace Cajero.Servidor.UI
                 var resumen = _repo.ObtenerResumenDiario();
                 var cajeros = _repo.ObtenerEstadoCajeros();
                 var txs = _repo.ObtenerTransacciones();
-                var alertas = _repo.ObtenerAlertas();
+                var bancos = _repo.ObtenerBancosRed();
+                var transferencias = _repo.ObtenerHistorialTransferencias(null, txtFiltroTokenTransferencia?.Text);
 
                 this.BeginInvoke(new Action(() =>
                 {
                     ActualizarVistaResumen(resumen, txs, cajeros);
                     ActualizarVistaCajeros(cajeros);
+                    ActualizarVistaInterbancario(bancos, transferencias);
                 }));
             });
         }
@@ -364,6 +377,8 @@ namespace Cajero.Servidor.UI
             var resumen = await Task.Run(() => _repo.ObtenerResumenDiario());
             var cajeros = await Task.Run(() => _repo.ObtenerEstadoCajeros());
             var txs = await Task.Run(() => _repo.ObtenerTransacciones());
+            var bancos = await Task.Run(() => _repo.ObtenerBancosRed());
+            var transferencias = await Task.Run(() => _repo.ObtenerHistorialTransferencias(null, txtFiltroTokenTransferencia?.Text));
             var usuarios = await Task.Run(() => _repo.ObtenerUsuarios());
             var alertas = await Task.Run(() => _repo.ObtenerAlertas());
             var bitacora = await Task.Run(() => _repo.ObtenerBitacora());
@@ -371,6 +386,7 @@ namespace Cajero.Servidor.UI
             ActualizarVistaResumen(resumen, txs, cajeros);
             ActualizarVistaCajeros(cajeros);
             ActualizarVistaTransacciones(txs);
+            ActualizarVistaInterbancario(bancos, transferencias);
             ActualizarVistaUsuarios(usuarios);
             ActualizarVistaAlertas(alertas);
             ActualizarVistaBitacora(bitacora);
@@ -642,6 +658,7 @@ namespace Cajero.Servidor.UI
             dgvCajeros.Columns.Add("UltimaTx", "Última Operación");
 
             pnlMonitorCajeros.Controls.Add(dgvCajeros);
+            dgvCajeros.BringToFront();
             pnlContenido.Controls.Add(pnlMonitorCajeros);
         }
 
@@ -732,19 +749,28 @@ namespace Cajero.Servidor.UI
             cbFiltroCajeroTx.SelectedIndexChanged += (s, e) => FiltrarTransacciones();
 
             var lblFTipo = new Label { Text = "Tipo:", Left = 195, Top = 14, Width = 45 };
-            cbFiltroTipoTx = new ComboBox { Left = 245, Top = 10, Width = 120, DropDownStyle = ComboBoxStyle.DropDownList };
-            cbFiltroTipoTx.Items.AddRange(new object[] { "Todos", "RETIRO", "DEPOSITO", "CAMBIO_PIN" });
+            cbFiltroTipoTx = new ComboBox { Left = 245, Top = 10, Width = 195, DropDownStyle = ComboBoxStyle.DropDownList };
+            cbFiltroTipoTx.Items.AddRange(new object[]
+            {
+                "Todos",
+                "RETIRO",
+                "DEPOSITO",
+                "CAMBIO_PIN",
+                "TRANSFERENCIA_ENVIADA",
+                "TRANSFERENCIA_RECIBIDA",
+                "TRANSFERENCIA_INTERBANCARIA"
+            });
             cbFiltroTipoTx.SelectedIndex = 0;
             cbFiltroTipoTx.SelectedIndexChanged += (s, e) => FiltrarTransacciones();
 
-            var lblFUsr = new Label { Text = "Buscar:", Left = 380, Top = 14, Width = 55 };
-            txtFiltroUsuarioTx = new TextBox { Left = 440, Top = 10, Width = 180, Font = new Font("Segoe UI", 9.5f) };
+            var lblFUsr = new Label { Text = "Buscar:", Left = 455, Top = 14, Width = 55 };
+            txtFiltroUsuarioTx = new TextBox { Left = 515, Top = 10, Width = 180, Font = new Font("Segoe UI", 9.5f) };
             txtFiltroUsuarioTx.TextChanged += (s, e) => FiltrarTransacciones();
 
             var btnExportar = new Button
             {
                 Text = "📥 Exportar Reporte",
-                Left = 640,
+                Left = 715,
                 Top = 8,
                 Width = 150,
                 Height = 32,
@@ -767,11 +793,13 @@ namespace Cajero.Servidor.UI
             dgvTransacciones.Columns.Add("Tarjeta", "Tarjeta");
             dgvTransacciones.Columns.Add("Tipo", "Tipo");
             dgvTransacciones.Columns.Add("Monto", "Monto");
-            dgvTransacciones.Columns.Add("Desglose", "Desglose Billetes");
+            dgvTransacciones.Columns.Add("TokenTransferencia", "Token Transferencia");
+            dgvTransacciones.Columns.Add("Desglose", "Desglose / Detalle");
             dgvTransacciones.Columns.Add("Resultado", "Resultado");
-            dgvTransacciones.Columns.Add("Motivo", "Motivo de Rechazo");
+            dgvTransacciones.Columns.Add("Motivo", "Motivo / Info");
 
             pnlTransacciones.Controls.Add(dgvTransacciones);
+            dgvTransacciones.BringToFront();
             pnlContenido.Controls.Add(pnlTransacciones);
         }
 
@@ -797,6 +825,7 @@ namespace Cajero.Servidor.UI
                     t.TarjetaEnmascarada,
                     t.Tipo,
                     $"Q {t.Monto:N2}",
+                    string.IsNullOrEmpty(t.TokenTransferencia) ? "-" : t.TokenTransferencia,
                     t.Desglose,
                     t.Aprobada ? "Aprobado (00)" : $"Rechazado ({t.CodigoRespuesta})",
                     t.MotivoRechazo ?? "-"
@@ -821,11 +850,11 @@ namespace Cajero.Servidor.UI
                 try
                 {
                     using var sw = new StreamWriter(sfd.FileName, false, System.Text.Encoding.UTF8);
-                    sw.WriteLine("ID,Fecha,Cajero,Usuario,Tarjeta,Tipo,Monto,Resultado,Motivo");
+                    sw.WriteLine("ID,Fecha,Cajero,Usuario,Tarjeta,Tipo,Monto,TokenTransferencia,Resultado,Motivo");
                     var txs = _repo.ObtenerTransacciones();
                     foreach (var t in txs)
                     {
-                        sw.WriteLine($"{t.IdTransaccion},{t.Fecha:yyyy-MM-dd HH:mm:ss},{t.Cajero},{t.Usuario},{t.TarjetaEnmascarada},{t.Tipo},{t.Monto},{t.CodigoRespuesta},{t.MotivoRechazo}");
+                        sw.WriteLine($"{t.IdTransaccion},{t.Fecha:yyyy-MM-dd HH:mm:ss},{t.Cajero},{t.Usuario},{t.TarjetaEnmascarada},{t.Tipo},{t.Monto},{t.TokenTransferencia},{t.CodigoRespuesta},{t.MotivoRechazo}");
                     }
                     MessageBox.Show("Reporte exportado exitosamente.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
@@ -834,6 +863,589 @@ namespace Cajero.Servidor.UI
                     MessageBox.Show("Error al exportar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        #endregion
+
+        #region 3.5 Módulo Red Interbancaria, Cupos y Tokens de Transferencia
+
+        private void ConstruirModuloInterbancario()
+        {
+            pnlInterbancario = new Panel { Dock = DockStyle.Fill, Padding = new Padding(15) };
+
+            // --- SECCIÓN SUPERIOR: BANCOS DE LA RED Y CUPOS COORDINADOS ---
+            var pnlTopBancos = new Panel { Dock = DockStyle.Top, Height = 260 };
+
+            var pnlAccionesBancos = new Panel { Dock = DockStyle.Top, Height = 45 };
+
+            var infoRedActual = ClienteInterbancario.ObtenerInfoRedLocal();
+            var lblSecBancos = new Label
+            {
+                Text = $"📡 Red: {infoRedActual.NombreRedSsid} ({infoRedActual.IpLocal})",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 200, 255),
+                Left = 5,
+                Top = 10,
+                Width = 225
+            };
+            pnlAccionesBancos.Controls.Add(lblSecBancos);
+
+            var btnEscanearLan = new Button
+            {
+                Text = "🔍 Escanear Red LAN",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(14, 165, 233),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 235,
+                Top = 5,
+                Width = 140,
+                Height = 33,
+                Cursor = Cursors.Hand
+            };
+            btnEscanearLan.FlatAppearance.BorderSize = 0;
+            btnEscanearLan.Click += async (s, e) =>
+            {
+                btnEscanearLan.Enabled = false;
+                btnEscanearLan.Text = "⏳ Escaneando...";
+                try
+                {
+                    var propio = _repo.ObtenerInfoBancoPropio();
+                    var diag = await ClienteInterbancario.EscanearSubredBancosAsync(propio.codigoBanco, _servidorTcp.Puerto);
+                    lblSecBancos.Text = $"📡 Red: {diag.NombreRedSsid} ({diag.IpLocal})";
+
+                    foreach (var det in diag.BancosDetectados)
+                    {
+                        _repo.GuardarBancoRed(det.codigoBanco, det.nombreBanco, det.ip, det.puerto, false, Math.Max(25000m, det.cupoDisp), null, true);
+                    }
+
+                    ActualizarVistaInterbancario(_repo.ObtenerBancosRed(), _repo.ObtenerHistorialTransferencias(null, txtFiltroTokenTransferencia?.Text));
+
+                    string detalleBancos = diag.BancosDetectados.Count > 0
+                        ? string.Join("\n", diag.BancosDetectados.Select(b => $"  • {b.codigoBanco} - {b.nombreBanco} ({b.ip}:{b.puerto})"))
+                        : "  • Ningún otro servidor bancario respondió en el puerto 5000 dentro de esta subred.";
+
+                    MessageBox.Show(
+                        $"Red Conectada: {diag.NombreRedSsid} ({diag.TipoInterfaz})\n" +
+                        $"IP Local: {diag.IpLocal} | Subred: {diag.SubredCidr} | Gateway: {diag.Gateway}\n" +
+                        $"Otras Interfaces: {diag.OtrasInterfaces}\n\n" +
+                        $"Bancos Detectados en la Misma Red ({diag.BancosDetectados.Count}):\n{detalleBancos}",
+                        "Escaneo de Red Interbancaria",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                finally
+                {
+                    btnEscanearLan.Text = "🔍 Escanear Red LAN";
+                    btnEscanearLan.Enabled = true;
+                }
+            };
+            pnlAccionesBancos.Controls.Add(btnEscanearLan);
+
+            var btnConfigBanco = new Button
+            {
+                Text = "➕ Configurar Banco / IP",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(0, 180, 255),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 380,
+                Top = 5,
+                Width = 155,
+                Height = 33,
+                Cursor = Cursors.Hand
+            };
+            btnConfigBanco.FlatAppearance.BorderSize = 0;
+            btnConfigBanco.Click += (s, e) => MostrarDialogoConfigurarBanco();
+            pnlAccionesBancos.Controls.Add(btnConfigBanco);
+
+            var btnPingBanco = new Button
+            {
+                Text = "📡 Ping Banco (TCP)",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(46, 213, 115),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 540,
+                Top = 5,
+                Width = 135,
+                Height = 33,
+                Cursor = Cursors.Hand
+            };
+            btnPingBanco.FlatAppearance.BorderSize = 0;
+            btnPingBanco.Click += async (s, e) => await ProbarPingBancoSeleccionadoAsync();
+            pnlAccionesBancos.Controls.Add(btnPingBanco);
+
+            var btnResetCupos = new Button
+            {
+                Text = "🔄 Reiniciar Cupos Hoy",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(241, 196, 15),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat,
+                Left = 680,
+                Top = 5,
+                Width = 145,
+                Height = 33,
+                Cursor = Cursors.Hand
+            };
+            btnResetCupos.FlatAppearance.BorderSize = 0;
+            btnResetCupos.Click += (s, e) =>
+            {
+                _repo.ReiniciarCuposDiariosBancos();
+                ActualizarVistaInterbancario(_repo.ObtenerBancosRed(), _repo.ObtenerHistorialTransferencias(null, txtFiltroTokenTransferencia?.Text));
+                MessageBox.Show("Los cupos diarios de transferencia de todos los bancos han sido reiniciados a Q 0.00 transferidos hoy.", "Cupos Reiniciados", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            pnlAccionesBancos.Controls.Add(btnResetCupos);
+
+            var btnCuentasDemo = new Button
+            {
+                Text = "👤 Cuentas Demo",
+                Font = new Font("Segoe UI", 8.5f),
+                BackColor = Color.FromArgb(155, 89, 182),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Left = 830,
+                Top = 5,
+                Width = 130,
+                Height = 33,
+                Cursor = Cursors.Hand
+            };
+            btnCuentasDemo.FlatAppearance.BorderSize = 0;
+            btnCuentasDemo.Click += (s, e) => MostrarDialogoCuentaExternaSimulada();
+            pnlAccionesBancos.Controls.Add(btnCuentasDemo);
+
+            var btnSimularEntrante = new Button
+            {
+                Text = "📥 Simular Rx Entrante",
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                BackColor = Color.FromArgb(39, 174, 96),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Left = 970,
+                Top = 5,
+                Width = 150,
+                Height = 33,
+                Cursor = Cursors.Hand
+            };
+            btnSimularEntrante.FlatAppearance.BorderSize = 0;
+            btnSimularEntrante.Click += (s, e) => MostrarDialogoSimularTransferenciaEntrante();
+            pnlAccionesBancos.Controls.Add(btnSimularEntrante);
+
+            dgvBancosRed = CrearGridGenerico();
+            dgvBancosRed.Dock = DockStyle.Fill;
+            dgvBancosRed.Columns.Add("CodigoBanco", "Código");
+            dgvBancosRed.Columns.Add("NombreBanco", "Banco");
+            dgvBancosRed.Columns.Add("Rol", "Rol");
+            dgvBancosRed.Columns.Add("Endpoint", "IP Router : Puerto");
+            dgvBancosRed.Columns.Add("LimiteDiario", "Cupo Límite Diario");
+            dgvBancosRed.Columns.Add("TransferidoHoy", "Restado Hoy (Coordinado)");
+            dgvBancosRed.Columns.Add("DisponibleHoy", "Cupo Disponible Hoy");
+            dgvBancosRed.Columns.Add("Estado", "Estado");
+
+            pnlTopBancos.Controls.Add(dgvBancosRed);
+            pnlTopBancos.Controls.Add(pnlAccionesBancos);
+            dgvBancosRed.BringToFront();
+
+            // --- SECCIÓN INFERIOR: BITÁCORA DE TRANSFERENCIAS Y TOKENS ---
+            var pnlBottomTransferencias = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 10, 0, 0) };
+
+            var pnlFiltroTrf = new Panel { Dock = DockStyle.Top, Height = 42 };
+
+            var lblTitTrf = new Label
+            {
+                Text = "🔑 REGISTRO COMPARTIDO DE TRANSFERENCIAS & TOKENS (dbo.TransferenciaBancaria)",
+                Font = new Font("Segoe UI", 9.8f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(46, 213, 115),
+                Left = 5,
+                Top = 10,
+                Width = 570
+            };
+            pnlFiltroTrf.Controls.Add(lblTitTrf);
+
+            var lblBusqToken = new Label
+            {
+                Text = "Buscar Token / Cuenta:",
+                Left = 590,
+                Top = 12,
+                Width = 145
+            };
+            pnlFiltroTrf.Controls.Add(lblBusqToken);
+
+            txtFiltroTokenTransferencia = new TextBox
+            {
+                Left = 740,
+                Top = 8,
+                Width = 240,
+                Font = new Font("Consolas", 10f),
+                BackColor = Color.FromArgb(30, 38, 52),
+                ForeColor = Color.FromArgb(241, 196, 15)
+            };
+            txtFiltroTokenTransferencia.TextChanged += (s, e) =>
+            {
+                var trfs = _repo.ObtenerHistorialTransferencias(null, txtFiltroTokenTransferencia.Text.Trim());
+                ActualizarGridTransferencias(trfs);
+            };
+            pnlFiltroTrf.Controls.Add(txtFiltroTokenTransferencia);
+
+            dgvTransferencias = CrearGridGenerico();
+            dgvTransferencias.Dock = DockStyle.Fill;
+            dgvTransferencias.Columns.Add("Token", "Token Transferencia");
+            dgvTransferencias.Columns.Add("Fecha", "Fecha / Hora");
+            dgvTransferencias.Columns.Add("Tipo", "Tipo / Dir");
+            dgvTransferencias.Columns.Add("Origen", "Banco / Cuenta Origen");
+            dgvTransferencias.Columns.Add("Destino", "Banco / Cuenta Destino");
+            dgvTransferencias.Columns.Add("Monto", "Monto");
+            dgvTransferencias.Columns.Add("Estado", "Estado");
+            dgvTransferencias.Columns.Add("CupoOrigen", "Cupo Rest. Origen");
+            dgvTransferencias.Columns.Add("CupoDestino", "Cupo Rest. Destino");
+            dgvTransferencias.Columns.Add("Concepto", "Concepto");
+
+            pnlBottomTransferencias.Controls.Add(dgvTransferencias);
+            pnlBottomTransferencias.Controls.Add(pnlFiltroTrf);
+            dgvTransferencias.BringToFront();
+
+            pnlInterbancario.Controls.Add(pnlBottomTransferencias);
+            pnlInterbancario.Controls.Add(pnlTopBancos);
+            pnlBottomTransferencias.BringToFront();
+            pnlContenido.Controls.Add(pnlInterbancario);
+        }
+
+        private void ActualizarVistaInterbancario(List<BancoRedDto> bancos, List<TransferenciaBancariaDto> transferencias)
+        {
+            if (dgvBancosRed == null || dgvTransferencias == null) return;
+
+            dgvBancosRed.Rows.Clear();
+            foreach (var b in bancos)
+            {
+                int idx = dgvBancosRed.Rows.Add(
+                    b.CodigoBanco,
+                    b.NombreBanco,
+                    b.EsPropio ? "⭐ NUESTRO BANCO" : "🌐 Banco Remoto",
+                    $"{b.IP}:{b.Puerto}",
+                    $"Q {b.LimiteDiario:N2}",
+                    $"Q {b.TransferidoHoy:N2}",
+                    $"Q {b.DisponibleHoy:N2}",
+                    b.Activo ? "Activo" : "Inactivo"
+                );
+
+                var cellDisp = dgvBancosRed.Rows[idx].Cells["DisponibleHoy"];
+                cellDisp.Style.ForeColor = b.DisponibleHoy > 0 ? Color.FromArgb(46, 213, 115) : Color.FromArgb(255, 71, 87);
+                cellDisp.Style.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+
+                if (b.EsPropio)
+                {
+                    dgvBancosRed.Rows[idx].Cells["Rol"].Style.ForeColor = Color.FromArgb(0, 200, 255);
+                    dgvBancosRed.Rows[idx].Cells["Rol"].Style.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+                }
+            }
+
+            ActualizarGridTransferencias(transferencias);
+        }
+
+        private void ActualizarGridTransferencias(List<TransferenciaBancariaDto> transferencias)
+        {
+            dgvTransferencias.Rows.Clear();
+            foreach (var t in transferencias)
+            {
+                int idx = dgvTransferencias.Rows.Add(
+                    t.TokenTransferencia,
+                    t.FechaCreacion.ToString("yyyy-MM-dd HH:mm:ss"),
+                    $"{t.TipoTransferencia} ({t.Direccion})",
+                    $"{t.BancoOrigen} - {t.CuentaOrigen} ({t.NombreOrigen})",
+                    $"{t.BancoDestino} - {t.CuentaDestino} ({t.NombreDestino})",
+                    $"Q {t.Monto:N2}",
+                    t.Estado,
+                    t.CupoRestanteBancoOrigen.HasValue ? $"Q {t.CupoRestanteBancoOrigen.Value:N2}" : "-",
+                    t.CupoRestanteBancoDestino.HasValue ? $"Q {t.CupoRestanteBancoDestino.Value:N2}" : "-",
+                    t.Concepto ?? "-"
+                );
+
+                dgvTransferencias.Rows[idx].Cells["Token"].Style.ForeColor = Color.FromArgb(241, 196, 15);
+                dgvTransferencias.Rows[idx].Cells["Token"].Style.Font = new Font("Consolas", 9.5f, FontStyle.Bold);
+
+                var cellEst = dgvTransferencias.Rows[idx].Cells["Estado"];
+                bool ok = t.Estado == "APROBADA" || t.Estado == EstadosTransferencia.Completada;
+                cellEst.Style.ForeColor = ok ? Color.FromArgb(46, 213, 115) : Color.FromArgb(255, 71, 87);
+                cellEst.Style.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            }
+        }
+
+        private async Task ProbarPingBancoSeleccionadoAsync()
+        {
+            if (dgvBancosRed.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Seleccione un banco de la tabla.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string cod = dgvBancosRed.SelectedRows[0].Cells["CodigoBanco"].Value?.ToString() ?? "";
+            var banco = _repo.ObtenerBancosRed().FirstOrDefault(x => x.CodigoBanco == cod);
+            if (banco == null) return;
+
+            var propio = _repo.ObtenerInfoBancoPropio();
+            var req = new SolicitudIbPing
+            {
+                BancoOrigen = propio.codigoBanco
+            };
+
+            var resp = await ClienteInterbancario.EnviarMensajeTcpBancoAsync(banco.IP, banco.Puerto, req);
+            if (resp != null && resp.Codigo == CodigosRespuesta.Aprobado)
+            {
+                MessageBox.Show(
+                    $"Conexión exitosa con {banco.NombreBanco} ({banco.IP}:{banco.Puerto})\n\n" +
+                    $"Mensaje: {resp.Mensaje}\n" +
+                    $"Cupo Diario Disponible local: Q {banco.DisponibleHoy:N2}",
+                    "Ping Interbancario Exitoso",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"No hubo respuesta TCP directa de {banco.NombreBanco} en {banco.IP}:{banco.Puerto}.\n" +
+                    $"Detalle: {resp?.Mensaje ?? "Timeout"}\n\n" +
+                    $"Nota: Mientras el servidor del otro compañero no esté en línea en el router, el sistema utilizará el padrón de cuentas externas de respaldo para permitir pruebas locales.",
+                    "Aviso de Red Interbancaria",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private void MostrarDialogoConfigurarBanco()
+        {
+            BancoRedDto? seleccionado = null;
+            if (dgvBancosRed.SelectedRows.Count > 0)
+            {
+                string codSel = dgvBancosRed.SelectedRows[0].Cells["CodigoBanco"].Value?.ToString() ?? "";
+                seleccionado = _repo.ObtenerBancosRed().FirstOrDefault(x => x.CodigoBanco == codSel);
+            }
+
+            using var dlg = new Form
+            {
+                Text = "Configurar Banco en la Red Interbancaria",
+                Size = new Size(460, 420),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(22, 28, 40),
+                ForeColor = Color.White
+            };
+
+            var lblCod = new Label { Text = "Código Banco (ej. BANC02):", Left = 20, Top = 20, Width = 180 };
+            var txtCod = new TextBox { Left = 210, Top = 18, Width = 200, Text = seleccionado?.CodigoBanco ?? "BANC02" };
+
+            var lblNom = new Label { Text = "Nombre del Banco:", Left = 20, Top = 60, Width = 180 };
+            var txtNom = new TextBox { Left = 210, Top = 58, Width = 200, Text = seleccionado?.NombreBanco ?? "Banco Industrial Estudiantil" };
+
+            var lblIp = new Label { Text = "IP en el Router:", Left = 20, Top = 100, Width = 180 };
+            var txtIp = new TextBox { Left = 210, Top = 98, Width = 200, Text = seleccionado?.IP ?? "192.168.1.102" };
+
+            var lblPto = new Label { Text = "Puerto TCP (ej. 5000):", Left = 20, Top = 140, Width = 180 };
+            var txtPto = new TextBox { Left = 210, Top = 138, Width = 200, Text = (seleccionado?.Puerto ?? 5000).ToString() };
+
+            var lblLim = new Label { Text = "Cupo Límite Diario (Q):", Left = 20, Top = 180, Width = 180 };
+            var txtLim = new TextBox { Left = 210, Top = 178, Width = 200, Text = (seleccionado?.LimiteDiario ?? 25000m).ToString("0.00") };
+
+            var lblSql = new Label { Text = "Cadena SQL (Opcional):", Left = 20, Top = 220, Width = 180 };
+            var txtSql = new TextBox { Left = 210, Top = 218, Width = 200, Text = seleccionado?.CadenaConexionBD ?? "" };
+
+            var chkPropio = new CheckBox { Text = "Es nuestro banco local", Left = 210, Top = 258, Width = 200, Checked = seleccionado?.EsPropio ?? false };
+            var chkActivo = new CheckBox { Text = "Banco Activo en Red", Left = 210, Top = 288, Width = 200, Checked = seleccionado?.Activo ?? true };
+
+            var btnGuardar = new Button
+            {
+                Text = "💾 Guardar Banco",
+                Left = 210,
+                Top = 328,
+                Width = 200,
+                Height = 36,
+                BackColor = Color.FromArgb(46, 213, 115),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnGuardar.Click += (s, e) =>
+            {
+                if (!int.TryParse(txtPto.Text.Trim(), out int puerto) || !decimal.TryParse(txtLim.Text.Trim(), out decimal limite))
+                {
+                    MessageBox.Show("Verifique el puerto y el límite diario.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _repo.GuardarBancoRed(
+                    txtCod.Text.Trim().ToUpperInvariant(),
+                    txtNom.Text.Trim(),
+                    txtIp.Text.Trim(),
+                    puerto,
+                    chkPropio.Checked,
+                    limite,
+                    string.IsNullOrWhiteSpace(txtSql.Text) ? null : txtSql.Text.Trim(),
+                    chkActivo.Checked);
+
+                ActualizarVistaInterbancario(_repo.ObtenerBancosRed(), _repo.ObtenerHistorialTransferencias(null, txtFiltroTokenTransferencia?.Text));
+                dlg.DialogResult = DialogResult.OK;
+                dlg.Close();
+            };
+
+            dlg.Controls.AddRange(new Control[] { lblCod, txtCod, lblNom, txtNom, lblIp, txtIp, lblPto, txtPto, lblLim, txtLim, lblSql, txtSql, chkPropio, chkActivo, btnGuardar });
+            dlg.ShowDialog(this);
+        }
+
+        private void MostrarDialogoCuentaExternaSimulada()
+        {
+            using var dlg = new Form
+            {
+                Text = "Cuentas Externas de Respaldo / Demo (dbo.CuentaBancoExterno)",
+                Size = new Size(560, 420),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(22, 28, 40),
+                ForeColor = Color.White
+            };
+
+            var grid = CrearGridGenerico();
+            grid.Top = 15;
+            grid.Left = 15;
+            grid.Width = 515;
+            grid.Height = 200;
+            grid.Columns.Add("Banco", "Banco");
+            grid.Columns.Add("Cuenta", "Número de Cuenta");
+            grid.Columns.Add("Titular", "Nombre Titular");
+            grid.Columns.Add("Saldo", "Saldo Ref.");
+
+            void Recargar()
+            {
+                grid.Rows.Clear();
+                foreach (var c in _repo.ObtenerCuentasExternasSimuladas())
+                {
+                    grid.Rows.Add(c.CodigoBanco, c.NumeroCuenta, c.NombreTitular, $"Q {c.SaldoSimulado:N2}");
+                }
+            }
+            Recargar();
+
+            var lblB = new Label { Text = "Código Banco:", Left = 15, Top = 230, Width = 100 };
+            var txtB = new TextBox { Left = 120, Top = 228, Width = 110, Text = "BANC02" };
+
+            var lblC = new Label { Text = "No. Cuenta:", Left = 250, Top = 230, Width = 90 };
+            var txtC = new TextBox { Left = 345, Top = 228, Width = 185, Text = "2002000003" };
+
+            var lblN = new Label { Text = "Nombre Titular:", Left = 15, Top = 270, Width = 100 };
+            var txtN = new TextBox { Left = 120, Top = 268, Width = 410, Text = "Estudiante Banco Par" };
+
+            var btnAdd = new Button
+            {
+                Text = "➕ Guardar Cuenta Externa",
+                Left = 120,
+                Top = 315,
+                Width = 220,
+                Height = 36,
+                BackColor = Color.FromArgb(0, 180, 255),
+                ForeColor = Color.Black,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnAdd.Click += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtB.Text) || string.IsNullOrWhiteSpace(txtC.Text) || string.IsNullOrWhiteSpace(txtN.Text))
+                    return;
+
+                _repo.GuardarCuentaExternaSimulada(txtB.Text.Trim().ToUpperInvariant(), txtC.Text.Trim(), txtN.Text.Trim(), 10000m);
+                Recargar();
+                MessageBox.Show("Cuenta externa registrada para pruebas interbancarias.", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
+            dlg.Controls.AddRange(new Control[] { grid, lblB, txtB, lblC, txtC, lblN, txtN, btnAdd });
+            dlg.ShowDialog(this);
+        }
+
+        private void MostrarDialogoSimularTransferenciaEntrante()
+        {
+            using var dlg = new Form
+            {
+                Text = "Simular Transferencia Interbancaria Entrante desde Otro Banco",
+                Size = new Size(460, 380),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.FromArgb(22, 28, 40),
+                ForeColor = Color.White
+            };
+
+            var lblTok = new Label { Text = "Token del Otro Banco:", Left = 20, Top = 20, Width = 170 };
+            var txtTok = new TextBox { Left = 200, Top = 18, Width = 220, Text = RepositorioServidor.GenerarTokenTransferenciaUnico() };
+
+            var lblBo = new Label { Text = "Banco Origen:", Left = 20, Top = 60, Width = 170 };
+            var txtBo = new TextBox { Left = 200, Top = 58, Width = 220, Text = "BANC02" };
+
+            var lblCo = new Label { Text = "Cuenta Origen:", Left = 20, Top = 100, Width = 170 };
+            var txtCo = new TextBox { Left = 200, Top = 98, Width = 220, Text = "2002000001" };
+
+            var lblNo = new Label { Text = "Titular Origen:", Left = 20, Top = 140, Width = 170 };
+            var txtNo = new TextBox { Left = 200, Top = 138, Width = 220, Text = "Roberto Gómez (BANC02)" };
+
+            var lblCd = new Label { Text = "Cuenta Destino (Local):", Left = 20, Top = 180, Width = 170 };
+            var txtCd = new TextBox { Left = 200, Top = 178, Width = 220, Text = "1001000001" };
+
+            var lblMo = new Label { Text = "Monto a Acreditar (Q):", Left = 20, Top = 220, Width = 170 };
+            var txtMo = new TextBox { Left = 200, Top = 218, Width = 220, Text = "250.00" };
+
+            var btnEjecutar = new Button
+            {
+                Text = "📥 Procesar Transferencia Entrante",
+                Left = 140,
+                Top = 275,
+                Width = 280,
+                Height = 40,
+                BackColor = Color.FromArgb(46, 213, 115),
+                ForeColor = Color.Black,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat
+            };
+            btnEjecutar.Click += (s, e) =>
+            {
+                if (!decimal.TryParse(txtMo.Text.Trim(), out decimal monto) || monto <= 0)
+                {
+                    MessageBox.Show("Ingrese un monto válido.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var propio = _repo.ObtenerInfoBancoPropio();
+                var res = _repo.RecibirTransferenciaInterbancariaEntrante(new SolicitudIbTransferir
+                {
+                    TokenTransferencia = txtTok.Text.Trim(),
+                    BancoOrigen = txtBo.Text.Trim().ToUpperInvariant(),
+                    CuentaOrigen = txtCo.Text.Trim(),
+                    NombreOrigen = txtNo.Text.Trim(),
+                    BancoDestino = propio.codigoBanco,
+                    CuentaDestino = txtCd.Text.Trim(),
+                    Monto = monto,
+                    Concepto = "Transferencia entrante interbancaria"
+                });
+
+                if (res.codigo == CodigosRespuesta.Aprobado && res.datos != null)
+                {
+                    ActualizarDashboardSilencioso();
+                    MessageBox.Show(
+                        $"¡Transferencia Entrante Aprobada!\n\n" +
+                        $"• Token Guardado: {res.datos.TokenTransferencia}\n" +
+                        $"• Beneficiario Local: {res.datos.NombreDestino}\n" +
+                        $"• Cupo Restante Nuestro Banco: Q {res.datos.CupoRestanteBancoDestino:N2}",
+                        "Transferencia Entrante Registrada",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    dlg.Close();
+                }
+                else
+                {
+                    MessageBox.Show($"Rechazada ({res.codigo}): {res.mensaje}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            dlg.Controls.AddRange(new Control[] { lblTok, txtTok, lblBo, txtBo, lblCo, txtCo, lblNo, txtNo, lblCd, txtCd, lblMo, txtMo, btnEjecutar });
+            dlg.ShowDialog(this);
         }
 
         #endregion
@@ -964,6 +1576,7 @@ namespace Cajero.Servidor.UI
             dgvUsuarios = CrearGridGenerico();
             dgvUsuarios.Dock = DockStyle.Fill;
             dgvUsuarios.Columns.Add("IdUsuario", "ID");
+            dgvUsuarios.Columns.Add("NumeroCuenta", "No. Cuenta Bancaria");
             dgvUsuarios.Columns.Add("Nombre", "Nombre");
             dgvUsuarios.Columns.Add("Saldo", "Saldo Actual");
             dgvUsuarios.Columns.Add("LimiteDiario", "Límite Diario");
@@ -974,6 +1587,7 @@ namespace Cajero.Servidor.UI
             dgvUsuarios.Columns.Add("Intentos", "Intentos Fallidos");
 
             pnlUsuarios.Controls.Add(dgvUsuarios);
+            dgvUsuarios.BringToFront();
             pnlContenido.Controls.Add(pnlUsuarios);
         }
 
@@ -996,6 +1610,7 @@ namespace Cajero.Servidor.UI
             {
                 int idx = dgvUsuarios.Rows.Add(
                     u.IdUsuario,
+                    u.NumeroCuenta,
                     u.Nombre,
                     $"Q {u.Saldo:N2}",
                     $"Q {u.LimiteDiario:N2}",
@@ -1005,6 +1620,9 @@ namespace Cajero.Servidor.UI
                     u.Estado,
                     u.IntentosFallidos
                 );
+
+                dgvUsuarios.Rows[idx].Cells["NumeroCuenta"].Style.ForeColor = Color.FromArgb(0, 200, 255);
+                dgvUsuarios.Rows[idx].Cells["NumeroCuenta"].Style.Font = new Font("Consolas", 9.5f, FontStyle.Bold);
 
                 var cellEst = dgvUsuarios.Rows[idx].Cells["Estado"];
                 cellEst.Style.ForeColor = u.Estado == "Activo" ? Color.FromArgb(46, 213, 115) : Color.FromArgb(255, 71, 87);
@@ -1031,7 +1649,7 @@ namespace Cajero.Servidor.UI
                 Height = 260
             };
 
-            var lblBuscar = new Label { Text = "Número de Tarjeta (16 dígitos) o ID:", Left = 20, Top = 35, Width = 260, Font = new Font("Segoe UI", 9.5f) };
+            var lblBuscar = new Label { Text = "Número de Tarjeta, Cuenta o ID:", Left = 20, Top = 35, Width = 260, Font = new Font("Segoe UI", 9.5f) };
             txtConsultaUsuario = new TextBox { Left = 290, Top = 32, Width = 220, Font = new Font("Segoe UI", 10f), Text = "1111222233334444" };
             var btnConsultar = new Button
             {
@@ -1056,7 +1674,7 @@ namespace Cajero.Servidor.UI
                 ForeColor = Color.FromArgb(220, 235, 250),
                 BackColor = Color.FromArgb(26, 32, 44),
                 Padding = new Padding(12),
-                Text = "Ingrese una tarjeta para ver el detalle de saldo, retirado hoy, disponible y último acceso."
+                Text = "Ingrese una tarjeta o cuenta para ver el detalle de saldo, retirado hoy, disponible y último acceso."
             };
 
             grpIndividual.Controls.AddRange(new Control[] { lblBuscar, txtConsultaUsuario, btnConsultar, lblDetalleUsuarioFase1 });
@@ -1096,19 +1714,19 @@ namespace Cajero.Servidor.UI
         {
             string tarj = txtConsultaUsuario.Text.Trim();
             var usuarios = _repo.ObtenerUsuarios();
-            var u = usuarios.FirstOrDefault(x => x.NumeroTarjeta == tarj || x.IdUsuario.ToString() == tarj);
+            var u = usuarios.FirstOrDefault(x => x.NumeroTarjeta == tarj || x.NumeroCuenta == tarj || x.IdUsuario.ToString() == tarj);
 
             if (u == null)
             {
-                lblDetalleUsuarioFase1.Text = "No se encontró ningún usuario con ese número de tarjeta o ID.";
+                lblDetalleUsuarioFase1.Text = "No se encontró ningún usuario con ese número de tarjeta, cuenta o ID.";
                 return;
             }
 
             var txs = _repo.UltimasTransacciones(u.NumeroTarjeta, 5);
-            string ultimas = string.Join("\n  • ", txs.Select(t => $"{t.Fecha} | {t.Cajero} | {t.Tipo} | Q{t.Monto:N2} | Cod:{t.CodigoRespuesta}"));
+            string ultimas = string.Join("\n  • ", txs.Select(t => $"{t.Fecha} | {t.Cajero} | {t.Tipo} | Q{t.Monto:N2} | {(string.IsNullOrEmpty(t.TokenTransferencia) ? $"Cod:{t.CodigoRespuesta}" : $"Token:{t.TokenTransferencia}")}"));
 
             lblDetalleUsuarioFase1.Text =
-                $"USUARIO: {u.Nombre} (ID: {u.IdUsuario}) - Estado: {u.Estado}\n" +
+                $"USUARIO: {u.Nombre} (ID: {u.IdUsuario} | Cuenta: {u.NumeroCuenta}) - Estado: {u.Estado}\n" +
                 $"Tarjeta Activa: **** {u.NumeroTarjeta[^4..]} | Creado: {u.FechaCreacion:yyyy-MM-dd}\n" +
                 $"------------------------------------------------------------------------\n" +
                 $"• Saldo Actual:            Q {u.Saldo:N2}\n" +
@@ -1179,6 +1797,7 @@ namespace Cajero.Servidor.UI
             dgvAlertas.Columns.Add("AtendidaPor", "Atendida Por");
 
             pnlAlertas.Controls.Add(dgvAlertas);
+            dgvAlertas.BringToFront();
             pnlContenido.Controls.Add(pnlAlertas);
         }
 
@@ -1215,7 +1834,7 @@ namespace Cajero.Servidor.UI
 
             var lblOB = new Label { Text = "Origen:", Left = 10, Top = 14, Width = 60 };
             var cbOrigen = new ComboBox { Left = 75, Top = 10, Width = 140, DropDownStyle = ComboBoxStyle.DropDownList };
-            cbOrigen.Items.AddRange(new object[] { "Todos", "Cajero", "Servidor", "Administrador" });
+            cbOrigen.Items.AddRange(new object[] { "Todos", "Cajero", "Servidor", "Administrador", "RedInterbancaria" });
             cbOrigen.SelectedIndex = 0;
 
             var lblBB = new Label { Text = "Buscar:", Left = 230, Top = 14, Width = 60 };
@@ -1236,6 +1855,7 @@ namespace Cajero.Servidor.UI
             dgvBitacora.Columns.Add("Detalle", "Detalle");
 
             pnlBitacora.Controls.Add(dgvBitacora);
+            dgvBitacora.BringToFront();
             pnlContenido.Controls.Add(pnlBitacora);
         }
 

@@ -250,6 +250,15 @@ namespace Cajero.Protocolo
         [JsonPropertyName("disponibleHoy")]
         public decimal DisponibleHoy { get; set; }
 
+        [JsonPropertyName("numeroCuenta")]
+        public string NumeroCuenta { get; set; } = string.Empty;
+
+        [JsonPropertyName("codigoBanco")]
+        public string CodigoBanco { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBanco")]
+        public string NombreBanco { get; set; } = string.Empty;
+
         [JsonPropertyName("tokenSesion")]
         public string TokenSesion { get; set; } = string.Empty;
     }
@@ -289,6 +298,9 @@ namespace Cajero.Protocolo
         [JsonPropertyName("nombreUsuario")]
         public string NombreUsuario { get; set; } = string.Empty;
 
+        [JsonPropertyName("numeroCuenta")]
+        public string NumeroCuenta { get; set; } = string.Empty;
+
         [JsonPropertyName("saldo")]
         public decimal Saldo { get; set; }
 
@@ -324,11 +336,338 @@ namespace Cajero.Protocolo
 
         [JsonPropertyName("motivoRechazo")]
         public string? MotivoRechazo { get; set; }
+
+        [JsonPropertyName("tokenTransferencia")]
+        public string? TokenTransferencia { get; set; }
     }
 
     public class DatosUltimasTransacciones
     {
         [JsonPropertyName("transacciones")]
         public List<ItemTransaccion> Transacciones { get; set; } = new();
+    }
+
+    // =========================================================================
+    // TRANSFERENCIAS (CAJERO <-> SERVIDOR)
+    // =========================================================================
+
+    public class SolicitudListarBancos : MensajeBase
+    {
+        [JsonPropertyName("cajero")]
+        public string Cajero { get; set; } = string.Empty;
+
+        public SolicitudListarBancos()
+        {
+            Tipo = TiposMensaje.ListarBancos;
+        }
+    }
+
+    public class ItemBancoProtocolo
+    {
+        [JsonPropertyName("codigoBanco")]
+        public string CodigoBanco { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBanco")]
+        public string NombreBanco { get; set; } = string.Empty;
+
+        [JsonPropertyName("esPropio")]
+        public bool EsPropio { get; set; }
+
+        [JsonPropertyName("limiteDiario")]
+        public decimal LimiteDiario { get; set; }
+
+        [JsonPropertyName("disponibleHoy")]
+        public decimal DisponibleHoy { get; set; }
+
+        [JsonPropertyName("activo")]
+        public bool Activo { get; set; } = true;
+    }
+
+    public class DatosListarBancos
+    {
+        [JsonPropertyName("bancos")]
+        public List<ItemBancoProtocolo> Bancos { get; set; } = new();
+
+        [JsonPropertyName("codigoBancoPropio")]
+        public string CodigoBancoPropio { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBancoPropio")]
+        public string NombreBancoPropio { get; set; } = string.Empty;
+    }
+
+    public class SolicitudVerificarCuenta : MensajeBase
+    {
+        [JsonPropertyName("cajero")]
+        public string Cajero { get; set; } = string.Empty;
+
+        [JsonPropertyName("numeroTarjeta")]
+        public string NumeroTarjeta { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoDestino")]
+        public string BancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("cuentaDestino")]
+        public string CuentaDestino { get; set; } = string.Empty;
+
+        public SolicitudVerificarCuenta()
+        {
+            Tipo = TiposMensaje.VerificarCuenta;
+        }
+    }
+
+    public class DatosVerificarCuenta
+    {
+        [JsonPropertyName("existe")]
+        public bool Existe { get; set; }
+
+        [JsonPropertyName("cuentaDestino")]
+        public string CuentaDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreTitular")]
+        public string NombreTitular { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoDestino")]
+        public string BancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBancoDestino")]
+        public string NombreBancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("cupoDisponibleOrigen")]
+        public decimal CupoDisponibleOrigen { get; set; }
+
+        [JsonPropertyName("cupoDisponibleDestino")]
+        public decimal CupoDisponibleDestino { get; set; }
+    }
+
+    public class SolicitudTransferencia : MensajeBase
+    {
+        [JsonPropertyName("cajero")]
+        public string Cajero { get; set; } = string.Empty;
+
+        [JsonPropertyName("numeroTarjeta")]
+        public string NumeroTarjeta { get; set; } = string.Empty;
+
+        [JsonPropertyName("sesion")]
+        public string Sesion { get; set; } = string.Empty;
+
+        [JsonPropertyName("esInterbancaria")]
+        public bool EsInterbancaria { get; set; }
+
+        [JsonPropertyName("bancoDestino")]
+        public string BancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("cuentaDestino")]
+        public string CuentaDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("monto")]
+        public decimal Monto { get; set; }
+
+        [JsonPropertyName("concepto")]
+        public string Concepto { get; set; } = string.Empty;
+
+        public SolicitudTransferencia()
+        {
+            Tipo = TiposMensaje.Transferencia;
+        }
+    }
+
+    public class DatosTransferencia
+    {
+        [JsonPropertyName("idTransaccion")]
+        public int IdTransaccion { get; set; }
+
+        [JsonPropertyName("tokenTransferencia")]
+        public string TokenTransferencia { get; set; } = string.Empty;
+
+        [JsonPropertyName("esInterbancaria")]
+        public bool EsInterbancaria { get; set; }
+
+        [JsonPropertyName("bancoOrigen")]
+        public string BancoOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBancoOrigen")]
+        public string NombreBancoOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("cuentaOrigen")]
+        public string CuentaOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreOrigen")]
+        public string NombreOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoDestino")]
+        public string BancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBancoDestino")]
+        public string NombreBancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("cuentaDestino")]
+        public string CuentaDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreDestino")]
+        public string NombreDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("monto")]
+        public decimal Monto { get; set; }
+
+        [JsonPropertyName("concepto")]
+        public string Concepto { get; set; } = string.Empty;
+
+        [JsonPropertyName("saldo")]
+        public decimal Saldo { get; set; }
+
+        [JsonPropertyName("cupoRestanteBancoOrigen")]
+        public decimal CupoRestanteBancoOrigen { get; set; }
+
+        [JsonPropertyName("cupoRestanteBancoDestino")]
+        public decimal CupoRestanteBancoDestino { get; set; }
+
+        [JsonPropertyName("fecha")]
+        public string Fecha { get; set; } = DateTime.Now.ToString("s");
+    }
+
+    // =========================================================================
+    // PROTOCOLO INTERBANCARIO ESTÁNDAR (BANCO <-> BANCO)
+    // =========================================================================
+
+    public class SolicitudIbPing : MensajeBase
+    {
+        [JsonPropertyName("bancoOrigen")]
+        public string BancoOrigen { get; set; } = string.Empty;
+
+        public SolicitudIbPing()
+        {
+            Tipo = TiposMensajeInterbancario.Ping;
+        }
+    }
+
+    public class SolicitudIbVerificarCuenta : MensajeBase
+    {
+        [JsonPropertyName("bancoOrigen")]
+        public string BancoOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoDestino")]
+        public string BancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("numeroCuenta")]
+        public string NumeroCuenta { get; set; } = string.Empty;
+
+        public SolicitudIbVerificarCuenta()
+        {
+            Tipo = TiposMensajeInterbancario.VerificarCuenta;
+        }
+    }
+
+    public class DatosIbVerificarCuenta
+    {
+        [JsonPropertyName("existe")]
+        public bool Existe { get; set; }
+
+        [JsonPropertyName("numeroCuenta")]
+        public string NumeroCuenta { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreTitular")]
+        public string NombreTitular { get; set; } = string.Empty;
+
+        [JsonPropertyName("banco")]
+        public string Banco { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreBanco")]
+        public string NombreBanco { get; set; } = string.Empty;
+
+        [JsonPropertyName("moneda")]
+        public string Moneda { get; set; } = "GTQ";
+
+        [JsonPropertyName("cupoDisponibleBanco")]
+        public decimal CupoDisponibleBanco { get; set; }
+    }
+
+    public class SolicitudIbTransferir : MensajeBase
+    {
+        [JsonPropertyName("tokenTransferencia")]
+        public string TokenTransferencia { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoOrigen")]
+        public string BancoOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("cuentaOrigen")]
+        public string CuentaOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreOrigen")]
+        public string NombreOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoDestino")]
+        public string BancoDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("cuentaDestino")]
+        public string CuentaDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("nombreDestino")]
+        public string NombreDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("monto")]
+        public decimal Monto { get; set; }
+
+        [JsonPropertyName("moneda")]
+        public string Moneda { get; set; } = "GTQ";
+
+        [JsonPropertyName("concepto")]
+        public string Concepto { get; set; } = string.Empty;
+
+        [JsonPropertyName("fechaEnvio")]
+        public string FechaEnvio { get; set; } = DateTime.Now.ToString("s");
+
+        public SolicitudIbTransferir()
+        {
+            Tipo = TiposMensajeInterbancario.Transferir;
+        }
+    }
+
+    public class DatosIbTransferir
+    {
+        [JsonPropertyName("tokenTransferencia")]
+        public string TokenTransferencia { get; set; } = string.Empty;
+
+        [JsonPropertyName("estado")]
+        public string Estado { get; set; } = EstadosTransferencia.Completada;
+
+        [JsonPropertyName("nombreDestino")]
+        public string NombreDestino { get; set; } = string.Empty;
+
+        [JsonPropertyName("cupoRestanteBancoDestino")]
+        public decimal CupoRestanteBancoDestino { get; set; }
+
+        [JsonPropertyName("fechaConfirmacion")]
+        public string FechaConfirmacion { get; set; } = DateTime.Now.ToString("s");
+    }
+
+    public class SolicitudIbConsultar : MensajeBase
+    {
+        [JsonPropertyName("tokenTransferencia")]
+        public string TokenTransferencia { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoOrigen")]
+        public string BancoOrigen { get; set; } = string.Empty;
+
+        public SolicitudIbConsultar()
+        {
+            Tipo = TiposMensajeInterbancario.Consultar;
+        }
+    }
+
+    public class SolicitudIbRevertir : MensajeBase
+    {
+        [JsonPropertyName("tokenTransferencia")]
+        public string TokenTransferencia { get; set; } = string.Empty;
+
+        [JsonPropertyName("bancoOrigen")]
+        public string BancoOrigen { get; set; } = string.Empty;
+
+        [JsonPropertyName("motivo")]
+        public string Motivo { get; set; } = string.Empty;
+
+        public SolicitudIbRevertir()
+        {
+            Tipo = TiposMensajeInterbancario.Revertir;
+        }
     }
 }

@@ -1868,3 +1868,209 @@ GO
 
 PRINT 'Base de datos BD_CajeroRed configurada exitosamente.';
 GO
+
+
+-- ============================================================================
+-- 7. MÓDULO DE TRANSFERENCIAS INTERNAS E INTERBANCARIAS (ESTÁNDAR COMÚN)
+-- ============================================================================
+
+-- 7.1 Agregar Número de Cuenta a Usuario (si no existe) y poblar cuentas
+IF COL_LENGTH('dbo.Usuario', 'NumeroCuenta') IS NULL
+BEGIN
+    ALTER TABLE dbo.Usuario ADD NumeroCuenta VARCHAR(20) NULL;
+END
+GO
+
+UPDATE dbo.Usuario
+SET NumeroCuenta = CONCAT('1001', RIGHT('000000' + CAST(IdUsuario AS VARCHAR(10)), 6))
+WHERE NumeroCuenta IS NULL OR NumeroCuenta = '';
+GO
+
+-- 7.2 Extender dbo.Transaccion para registrar transferencias y TokenTransferencia
+IF COL_LENGTH('dbo.Transaccion', 'TokenTransferencia') IS NULL
+BEGIN
+    ALTER TABLE dbo.Transaccion ADD TokenTransferencia VARCHAR(32) NULL;
+END
+GO
+
+DECLARE @chkTx NVARCHAR(128);
+SELECT @chkTx = dc.name
+FROM sys.check_constraints dc
+JOIN sys.columns c ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+WHERE dc.parent_object_id = OBJECT_ID('dbo.Transaccion') AND c.name = 'Tipo';
+IF @chkTx IS NOT NULL
+BEGIN
+    EXEC('ALTER TABLE dbo.Transaccion DROP CONSTRAINT [' + @chkTx + ']');
+END
+ALTER TABLE dbo.Transaccion ALTER COLUMN Tipo VARCHAR(30) NOT NULL;
+ALTER TABLE dbo.Transaccion ALTER COLUMN IdTarjeta INT NULL;
+ALTER TABLE dbo.Transaccion ALTER COLUMN IdCajero INT NULL;
+ALTER TABLE dbo.Transaccion ADD CONSTRAINT CK_Transaccion_Tipo
+    CHECK (Tipo IN ('RETIRO', 'DEPOSITO', 'CONSULTA', 'CAMBIO_PIN', 'TRANSFERENCIA_ENVIADA', 'TRANSFERENCIA_RECIBIDA', 'TRANSFERENCIA_INTERBANCARIA'));
+GO
+
+-- 7.3 Tabla Común: Catálogo de Bancos y Cupo Diario Coordinado
+IF OBJECT_ID('dbo.BancoRed', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.BancoRed (
+        IdBanco INT IDENTITY(1,1) PRIMARY KEY,
+        CodigoBanco VARCHAR(10) NOT NULL UNIQUE,           -- Ej. 'BANC01', 'BANC02', 'BANC03'
+        NombreBanco VARCHAR(100) NOT NULL,                 -- Nombre del banco
+        IP VARCHAR(50) NOT NULL DEFAULT '127.0.0.1',       -- IP del servidor del banco en el router
+        Puerto INT NOT NULL DEFAULT 5000,                  -- Puerto TCP del banco
+        EsPropio BIT NOT NULL DEFAULT 0,                   -- 1 = Nuestro banco, 0 = Otro banco
+        LimiteDiario DECIMAL(18,2) NOT NULL DEFAULT 50000.00 CHECK (LimiteDiario > 0), -- Cupo diario del banco
+        TransferidoHoy DECIMAL(18,2) NOT NULL DEFAULT 0.00 CHECK (TransferidoHoy >= 0),-- Acumulado hoy (se resta al límite)
+        FechaUltimoReset DATE NOT NULL DEFAULT CAST(GETDATE() AS DATE),
+        CadenaConexionBD VARCHAR(500) NULL,                -- Opcional: cadena SQL directa al banco remoto
+        Activo BIT NOT NULL DEFAULT 1,
+        FechaRegistro DATETIME NOT NULL DEFAULT GETDATE()
+    );
+END
+GO
+
+-- 7.4 Tabla Común Estándar: TransferenciaBancaria (compartida por todos los bancos)
+-- Guarda el TokenTransferencia en nuestro banco, el otro banco y el historial del usuario.
+IF OBJECT_ID('dbo.TransferenciaBancaria', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.TransferenciaBancaria (
+        IdTransferencia INT IDENTITY(1,1) PRIMARY KEY,
+        TokenTransferencia VARCHAR(32) NOT NULL UNIQUE,    -- Token único generado (ej. TRF-20261029-849201)
+        TipoTransferencia VARCHAR(20) NOT NULL
+            CHECK (TipoTransferencia IN ('INTERNA', 'INTERBANCARIA')),
+        Direccion VARCHAR(15) NOT NULL DEFAULT 'SALIENTE'
+            CHECK (Direccion IN ('INTERNA', 'SALIENTE', 'ENTRANTE')),
+        BancoOrigen VARCHAR(10) NOT NULL,                  -- Código del banco emisor
+        CuentaOrigen VARCHAR(20) NOT NULL,                 -- Cuenta o tarjeta del emisor
+        NombreOrigen VARCHAR(100) NOT NULL,                -- Nombre del titular emisor
+        BancoDestino VARCHAR(10) NOT NULL,                 -- Código del banco receptor
+        CuentaDestino VARCHAR(20) NOT NULL,                -- Cuenta o tarjeta del receptor
+        NombreDestino VARCHAR(100) NOT NULL,               -- Nombre del titular receptor
+        Monto DECIMAL(18,2) NOT NULL CHECK (Monto > 0),    -- Monto transferido
+        Moneda VARCHAR(5) NOT NULL DEFAULT 'GTQ',          -- Moneda estándar
+        Concepto VARCHAR(200) NULL,                        -- Motivo o descripción
+        Estado VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE'
+            CHECK (Estado IN ('PENDIENTE', 'COMPLETADA', 'RECHAZADA', 'REVERTIDA', 'ANULADA')),
+        CodigoRespuesta VARCHAR(10) NOT NULL DEFAULT '00',
+        MensajeRespuesta VARCHAR(255) NULL,
+        CupoRestanteBancoOrigen DECIMAL(18,2) NULL,        -- Límite disponible tras restar en banco origen
+        CupoRestanteBancoDestino DECIMAL(18,2) NULL,       -- Límite disponible tras restar en banco destino
+        IdUsuarioLocal INT NULL FOREIGN KEY REFERENCES dbo.Usuario(IdUsuario),
+        IdCajero VARCHAR(20) NULL,
+        FechaCreacion DATETIME NOT NULL DEFAULT GETDATE(),
+        FechaConfirmacion DATETIME NULL
+    );
+END
+GO
+
+-- 7.5 Cuentas Externas de Respaldo / Simulación Local (cuando el otro banco aún no está en el router)
+IF OBJECT_ID('dbo.CuentaBancoExterno', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CuentaBancoExterno (
+        IdCuentaExterna INT IDENTITY(1,1) PRIMARY KEY,
+        CodigoBanco VARCHAR(10) NOT NULL,
+        NumeroCuenta VARCHAR(20) NOT NULL,
+        NombreTitular VARCHAR(100) NOT NULL,
+        SaldoSimulado DECIMAL(18,2) NOT NULL DEFAULT 5000.00,
+        Activa BIT NOT NULL DEFAULT 1,
+        CONSTRAINT UQ_Banco_CuentaExterna UNIQUE (CodigoBanco, NumeroCuenta)
+    );
+END
+GO
+
+-- 7.6 Actualizar sp_UltimasTransacciones para incluir transferencias (sin cajero o con TokenTransferencia)
+CREATE OR ALTER PROCEDURE dbo.sp_UltimasTransacciones
+    @NumeroTarjeta VARCHAR(16),
+    @TopN INT = 5
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IdUsuario INT;
+    SELECT @IdUsuario = IdUsuario FROM dbo.Tarjeta WHERE NumeroTarjeta = @NumeroTarjeta;
+
+    SELECT TOP (@TopN)
+        t.IdTransaccion,
+        t.Fecha,
+        ISNULL(c.Codigo, 'RED-IB') AS Cajero,
+        t.Tipo,
+        t.Monto,
+        t.CodigoRespuesta,
+        t.MotivoRechazo,
+        t.TokenTransferencia
+    FROM dbo.Transaccion t
+    LEFT JOIN dbo.Cajero c ON t.IdCajero = c.IdCajero
+    WHERE t.IdUsuario = @IdUsuario
+    ORDER BY t.Fecha DESC;
+END;
+GO
+
+-- 7.7 Procedimiento: sp_VerificarCuentaLocal (busca por NumeroCuenta o NumeroTarjeta de 16 dígitos)
+CREATE OR ALTER PROCEDURE dbo.sp_VerificarCuentaLocal
+    @CuentaOTarjeta VARCHAR(20),
+    @Existe BIT OUTPUT,
+    @IdUsuario INT OUTPUT,
+    @NumeroCuenta VARCHAR(20) OUTPUT,
+    @NumeroTarjeta VARCHAR(16) OUTPUT,
+    @NombreTitular VARCHAR(100) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET @Existe = 0;
+    SET @IdUsuario = 0;
+    SET @NumeroCuenta = '';
+    SET @NumeroTarjeta = '';
+    SET @NombreTitular = '';
+
+    SELECT TOP 1
+        @Existe = 1,
+        @IdUsuario = u.IdUsuario,
+        @NumeroCuenta = ISNULL(u.NumeroCuenta, ISNULL(t.NumeroTarjeta, '')),
+        @NumeroTarjeta = ISNULL(t.NumeroTarjeta, ''),
+        @NombreTitular = u.Nombre
+    FROM dbo.Usuario u
+    LEFT JOIN dbo.Tarjeta t ON u.IdUsuario = t.IdUsuario AND t.Activa = 1
+    WHERE u.Activo = 1 AND u.Estado = 'Activo'
+      AND (u.NumeroCuenta = @CuentaOTarjeta OR t.NumeroTarjeta = @CuentaOTarjeta);
+END;
+GO
+
+-- 7.8 Datos Semilla para Bancos de la Red y Cuentas Externas de Prueba
+MERGE dbo.Parametro AS target
+USING (VALUES 
+    ('CodigoBancoPropio', 'BANC01', 'Código identificador único de nuestro banco en la red interbancaria'),
+    ('NombreBancoPropio', 'Banco Nacional Central', 'Nombre oficial de nuestro banco'),
+    ('LimiteInterbancarioDiario', '50000.00', 'Cupo diario global para transferencias interbancarias')
+) AS source(Clave, Valor, Descripcion)
+ON target.Clave = source.Clave
+WHEN NOT MATCHED THEN
+    INSERT (Clave, Valor, Descripcion) VALUES (source.Clave, source.Valor, source.Descripcion);
+GO
+
+MERGE dbo.BancoRed AS target
+USING (VALUES
+    ('BANC01', 'Banco Nacional Central (Nuestro Banco)', '127.0.0.1', 5000, 1, 50000.00),
+    ('BANC02', 'Banco Industrial Universitario',         '192.168.1.102', 5000, 0, 50000.00),
+    ('BANC03', 'Banco Metropolitano del Sur',            '192.168.1.103', 5000, 0, 50000.00),
+    ('BANC04', 'Banco Continental de Occidente',         '192.168.1.104', 5000, 0, 50000.00)
+) AS source(CodigoBanco, NombreBanco, IP, Puerto, EsPropio, LimiteDiario)
+ON target.CodigoBanco = source.CodigoBanco
+WHEN NOT MATCHED THEN
+    INSERT (CodigoBanco, NombreBanco, IP, Puerto, EsPropio, LimiteDiario, TransferidoHoy, FechaUltimoReset, Activo)
+    VALUES (source.CodigoBanco, source.NombreBanco, source.IP, source.Puerto, source.EsPropio, source.LimiteDiario, 0.00, CAST(GETDATE() AS DATE), 1);
+GO
+
+MERGE dbo.CuentaBancoExterno AS target
+USING (VALUES
+    ('BANC02', '2002000001', 'Roberto Carlos Estrada (BANC02)', 9500.00),
+    ('BANC02', '2002000002', 'Gabriela Fernanda Solares (BANC02)', 6400.00),
+    ('BANC02', '9000111122223333', 'Pedro Antonio Alvarado (BANC02)', 12000.00),
+    ('BANC03', '3003000001', 'Lucía Fernanda Coronado (BANC03)', 7800.00),
+    ('BANC03', '3003000002', 'Mario Alejandro Cabrera (BANC03)', 4300.00),
+    ('BANC04', '4004000001', 'Claudia Patricia Herrera (BANC04)', 15200.00)
+) AS source(CodigoBanco, NumeroCuenta, NombreTitular, SaldoSimulado)
+ON target.CodigoBanco = source.CodigoBanco AND target.NumeroCuenta = source.NumeroCuenta
+WHEN NOT MATCHED THEN
+    INSERT (CodigoBanco, NumeroCuenta, NombreTitular, SaldoSimulado, Activa)
+    VALUES (source.CodigoBanco, source.NumeroCuenta, source.NombreTitular, source.SaldoSimulado, 1);
+GO

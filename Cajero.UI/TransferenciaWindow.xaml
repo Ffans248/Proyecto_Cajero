@@ -1,0 +1,193 @@
+<Window x:Class="Cajero.UI.TransferenciaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Transferencias Bancarias e Interbancarias" 
+        Height="820" Width="820"
+        WindowStartupLocation="CenterScreen" 
+        ResizeMode="CanMinimize"
+        Background="{StaticResource BgPrimaryBrush}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Cabecera y Selector de Modalidad -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock x:Name="lblTituloVentana" Text="Transferencia entre Usuarios / Interbancaria" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock x:Name="lblSubtituloVentana" Text="Verifique la cuenta de destino, coordine límites bancarios y genere token único de registro." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="btnModoInterna" Content="Entre Usuarios (Mismo Banco)" Style="{StaticResource PrimaryButton}" Height="34" Padding="12,0" Margin="0,0,8,0" Click="BtnModoInterna_Click"/>
+                <Button x:Name="btnModoInterbancaria" Content="Otros Bancos (Interbancaria)" Style="{StaticResource OutlineButton}" Height="34" Padding="12,0" Click="BtnModoInterbancaria_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Panel de Detección de Red Activa y Bancos Conectados en la Misma Red -->
+        <Border Grid.Row="1" Background="#0F172A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="lblInfoRedActual"
+                               Text="📡 Detectando red activa..."
+                               FontSize="12.5"
+                               FontWeight="Bold"
+                               Foreground="#38BDF8"
+                               TextWrapping="Wrap"/>
+                    <TextBlock x:Name="lblEstadoDeteccionBancos"
+                               Text="Buscando otros bancos conectados a la misma subred (UDP 5005 / TCP 5000)..."
+                               FontSize="11.5"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,3,0,0"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        x:Name="btnEscanearRed"
+                        Content="📡 Escanear Red Local"
+                        Style="{StaticResource OutlineButton}"
+                        Height="34"
+                        Padding="14,0"
+                        Margin="12,0,0,0"
+                        VerticalAlignment="Center"
+                        Click="BtnEscanearRed_Click"/>
+            </Grid>
+        </Border>
+
+        <!-- Banner de Token de Registro y Límites de Bancos Coordinados -->
+        <Border Grid.Row="2" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Row="0" Grid.ColumnSpan="3" Background="{StaticResource BgCardLighterBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Token Único de Registro (Se guarda en Nuestro Banco, Otro Banco y Usuario): " FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="lblTokenTransferencia" Text="TRF-20261029-000000" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="Nuevo Token" Style="{StaticResource OutlineButton}" Height="26" Padding="10,0" FontSize="11" Click="BtnRegenerarToken_Click"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                    <TextBlock Text="TU SALDO DISPONIBLE:" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                    <TextBlock x:Name="lblSaldoUsuario" Text="Q 0.00" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentSuccessBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,8,0">
+                    <TextBlock Text="CUPO HOY NUESTRO BANCO (BANC01):" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                    <TextBlock x:Name="lblCupoNuestroBanco" Text="Q 25,000.00" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentPrimaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="2" Margin="8,0,0,0">
+                    <TextBlock x:Name="lblTituloCupoDestino" Text="CUPO HOY BANCO DESTINO:" FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                    <TextBlock x:Name="lblCupoBancoDestino" Text="Q 25,000.00" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Formulario Principal de Verificación de Cuenta y Transferencia -->
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Border Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel>
+
+                    <!-- Paso 1: Selección de Banco Destino (Visible en modo Interbancario) -->
+                    <StackPanel x:Name="pnlSelectorBanco" Margin="0,0,0,14">
+                        <TextBlock Text="1. Seleccione el Banco de Destino:" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                        <ComboBox x:Name="cbBancoDestino" Height="40" FontSize="13.5" SelectionChanged="CbBancoDestino_SelectionChanged"
+                                  Background="#0F172A" Foreground="#0F172A" Padding="10,6"/>
+                    </StackPanel>
+
+                    <!-- Paso 2: Ingreso de Número de Cuenta y Verificación de Existencia -->
+                    <TextBlock x:Name="lblPasoCuenta" Text="2. Ingrese Número de Cuenta o Tarjeta y Verifique si Existe el Usuario:" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="txtCuentaDestino" Grid.Column="0" Height="40" FontSize="15" VerticalContentAlignment="Center" Padding="10,0" TextChanged="TxtCuentaDestino_TextChanged"/>
+                        <Button x:Name="btnVerificarCuenta" Grid.Column="1" Content="Verificar si Existe Usuario" Style="{StaticResource PrimaryButton}" Height="40" Padding="18,0" Margin="10,0,0,0" Click="BtnVerificarCuenta_Click"/>
+                    </Grid>
+
+                    <!-- Botones de Cuentas Rápidas para Prueba Inmediata -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Cuentas de prueba rápida: " FontSize="11.5" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <WrapPanel x:Name="pnlCuentasRapidas" Orientation="Horizontal"/>
+                    </StackPanel>
+
+                    <!-- Resultado de Verificación del Usuario -->
+                    <Border x:Name="brdEstadoVerificacion" Background="{StaticResource BgCardLighterBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,16">
+                        <TextBlock x:Name="lblEstadoVerificacion" Text="Ingrese el número de cuenta y presione 'Verificar si Existe Usuario' antes de transferir." FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <!-- Paso 3: Monto, Concepto y PIN -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Monto a Transferir (Q):" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                            <TextBox x:Name="txtMonto" Height="40" FontSize="16" FontWeight="Bold" VerticalContentAlignment="Center" TextAlignment="Center" Text="250.00"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="8,0,8,0">
+                            <TextBlock Text="PIN de Seguridad (4 dígitos):" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                            <PasswordBox x:Name="pwdPin" MaxLength="4" Height="40" FontSize="16" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                            <TextBlock Text="Concepto / Motivo:" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                            <TextBox x:Name="txtConcepto" Height="40" FontSize="13.5" VerticalContentAlignment="Center" Padding="8,0" Text="Pago de transferencia"/>
+                        </StackPanel>
+                    </Grid>
+
+                </StackPanel>
+            </Border>
+        </ScrollViewer>
+
+        <!-- Pie de página -->
+        <Grid Grid.Row="4" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="lblNotaCoordinacion" Grid.Column="0" Text="En transferencias interbancarias el monto se resta coordinadamente al límite de ambos bancos." FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="Cancelar / Volver" Style="{StaticResource OutlineButton}" Width="140" Height="42" Margin="0,0,12,0" Click="BtnCancelar_Click"/>
+                <Button x:Name="btnConfirmarTransferencia" Content="Ejecutar Transferencia" Style="{StaticResource SuccessButton}" Width="210" Height="42" IsEnabled="False" Click="BtnConfirmarTransferencia_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

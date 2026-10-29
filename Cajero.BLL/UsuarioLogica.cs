@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cajerro.DAL;
 using Cajerro.DAL.Interfaces;
 using Cajerro.DAL.Modelos;
 
@@ -275,6 +276,304 @@ namespace Cajero.BLL
         public static string GenerarToken4Digitos()
         {
             return Random.Shared.Next(1000, 10000).ToString();
+        }
+
+        /// <summary>
+        /// Genera un token único de registro para transferencias entre usuarios e interbancarias (TRF-YYYYMMDD-XXXXXX).
+        /// </summary>
+        public static string GenerarTokenTransferencia()
+        {
+            return $"TRF-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
+        }
+
+        /// <summary>
+        /// Verifica si existe el usuario o número de cuenta en nuestro banco (transferencia interna)
+        /// o en el banco seleccionado (transferencia interbancaria), devolviendo también los límites disponibles de ambos bancos.
+        /// </summary>
+        public (bool Existe, string CuentaNormalizada, string NombreTitular, string CodigoBanco, string NombreBanco, decimal CupoBancoOrigen, decimal CupoBancoDestino, string Mensaje) VerificarCuentaDestino(
+            bool esInterbancaria,
+            string codigoBancoDestino,
+            string cuentaDestino,
+            string tarjetaOrigen)
+        {
+            if (string.IsNullOrWhiteSpace(cuentaDestino))
+            {
+                return (false, "", "", "", "", 0m, 0m, "Debe ingresar un número de cuenta o tarjeta de destino.");
+            }
+
+            string ctaBuscada = cuentaDestino.Trim();
+            var bancos = _dal.ObtenerBancosRed();
+            var bancoPropio = bancos.FirstOrDefault(b => b.EsPropio) ?? new BancoRedInfo
+            {
+                CodigoBanco = "BANC01",
+                NombreBanco = "NEXUSBANK (Nuestro Banco)",
+                EsPropio = true,
+                LimiteDiario = 25000m
+            };
+
+            if (!esInterbancaria || string.IsNullOrWhiteSpace(codigoBancoDestino) || codigoBancoDestino.Equals(bancoPropio.CodigoBanco, StringComparison.OrdinalIgnoreCase))
+            {
+                var destLocal = _dal.ObtenerUsuarioPorTarjeta(ctaBuscada);
+                if (destLocal == null)
+                {
+                    return (false, ctaBuscada, "", bancoPropio.CodigoBanco, bancoPropio.NombreBanco, bancoPropio.DisponibleHoy, bancoPropio.DisponibleHoy,
+                        $"No existe ningún usuario con la cuenta o tarjeta '{ctaBuscada}' en {bancoPropio.NombreBanco}.");
+                }
+
+                if (destLocal.NumeroTarjeta.Equals(tarjetaOrigen?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return (false, destLocal.NumeroTarjeta, destLocal.Nombre, bancoPropio.CodigoBanco, bancoPropio.NombreBanco, bancoPropio.DisponibleHoy, bancoPropio.DisponibleHoy,
+                        "No puede realizar una transferencia hacia su misma cuenta.");
+                }
+
+                return (true, destLocal.NumeroTarjeta, destLocal.Nombre, bancoPropio.CodigoBanco, bancoPropio.NombreBanco, bancoPropio.DisponibleHoy, bancoPropio.DisponibleHoy,
+                    $"Usuario verificado en {bancoPropio.NombreBanco}: {destLocal.Nombre}");
+            }
+            else
+            {
+                var bancoExt = bancos.FirstOrDefault(b => b.CodigoBanco.Equals(codigoBancoDestino.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (bancoExt == null)
+                {
+                    return (false, ctaBuscada, "", codigoBancoDestino, "Banco Desconocido", bancoPropio.DisponibleHoy, 0m,
+                        $"El banco seleccionado ({codigoBancoDestino}) no existe en la red interbancaria.");
+                }
+
+                // 1. Si el banco externo está detectado en red (IP real != 127.0.0.1), consultar en vivo por TCP 5000
+                if (bancoExt.EnLinea && !string.IsNullOrWhiteSpace(bancoExt.IP) && bancoExt.IP != "127.0.0.1")
+                {
+                    var rem = DescubridorRedBancaria.VerificarCuentaEnBancoRemotoTcp(bancoExt, bancoPropio.CodigoBanco, ctaBuscada);
+                    if (rem.respondioRed)
+                    {
+                        decimal cupoRem = rem.cupoRemoto ?? bancoExt.DisponibleHoy;
+                        if (!rem.existe)
+                        {
+                            return (false, ctaBuscada, "", bancoExt.CodigoBanco, bancoExt.NombreBanco, bancoPropio.DisponibleHoy, cupoRem,
+                                $"El banco {bancoExt.NombreBanco} ({bancoExt.IP}) respondió que la cuenta '{ctaBuscada}' NO existe.");
+                        }
+
+                        return (true, rem.numeroCuenta, rem.nombreTitular, bancoExt.CodigoBanco, bancoExt.NombreBanco,
+                            bancoPropio.DisponibleHoy, cupoRem,
+                            $"Cuenta verificada en red con {bancoExt.NombreBanco} ({bancoExt.IP}): {rem.nombreTitular}");
+                    }
+                }
+
+                // 2. Respaldo en padrón de cuentas externas (CuentasExternas.csv)
+                var cuentasBanco = _dal.ObtenerCuentasExternas(bancoExt.CodigoBanco);
+                var ctaExterna = cuentasBanco.FirstOrDefault(c => c.Activa && c.NumeroCuenta.Equals(ctaBuscada, StringComparison.OrdinalIgnoreCase));
+
+                if (ctaExterna == null)
+                {
+                    return (false, ctaBuscada, "", bancoExt.CodigoBanco, bancoExt.NombreBanco, bancoPropio.DisponibleHoy, bancoExt.DisponibleHoy,
+                        $"No existe el usuario con número de cuenta '{ctaBuscada}' en {bancoExt.NombreBanco}.");
+                }
+
+                return (true, ctaExterna.NumeroCuenta, ctaExterna.NombreTitular, bancoExt.CodigoBanco, bancoExt.NombreBanco,
+                    bancoPropio.DisponibleHoy, bancoExt.DisponibleHoy,
+                    $"Cuenta verificada en {bancoExt.NombreBanco}: {ctaExterna.NombreTitular}");
+            }
+        }
+
+        /// <summary>
+        /// Ejecuta una transferencia entre usuarios del mismo banco o una transferencia interbancaria.
+        /// - Genera un TokenTransferencia único que se guarda en: Nuestro Banco, El Otro Banco y el Historial del Usuario.
+        /// - En transferencias interbancarias, resta el monto al límite diario de los dos bancos coordinándose.
+        /// </summary>
+        public RegistroTransferenciaBancaria RealizarTransferencia(
+            string tarjetaOrigen,
+            string pin,
+            bool esInterbancaria,
+            string codigoBancoDestino,
+            string cuentaDestino,
+            decimal monto,
+            string concepto,
+            string? tokenPreGenerado = null)
+        {
+            var emisor = _dal.ObtenerUsuarioPorTarjeta(tarjetaOrigen);
+            if (emisor == null)
+                throw new Exception("Usuario de origen no encontrado.");
+
+            if (string.IsNullOrWhiteSpace(pin) || pin.Length != 4 || !pin.All(char.IsDigit))
+                throw new Exception("El PIN de seguridad debe contener exactamente 4 dígitos numéricos.");
+
+            if (emisor.PIN != pin)
+                throw new Exception("El PIN de seguridad ingresado es incorrecto.");
+
+            if (monto <= 0)
+                throw new Exception("El monto a transferir debe ser mayor a Q 0.00.");
+
+            if (emisor.SaldoActual < monto)
+                throw new Exception($"Saldo insuficiente en su cuenta (Saldo actual: Q {emisor.SaldoActual:N2}).");
+
+            // Verificar existencia de la cuenta destino en el banco correspondiente
+            var verif = VerificarCuentaDestino(esInterbancaria, codigoBancoDestino, cuentaDestino, emisor.NumeroTarjeta);
+            if (!verif.Existe)
+            {
+                throw new Exception(verif.Mensaje);
+            }
+
+            var bancos = _dal.ObtenerBancosRed();
+            var bancoPropio = bancos.FirstOrDefault(b => b.EsPropio) ?? new BancoRedInfo
+            {
+                CodigoBanco = "BANC01",
+                NombreBanco = "NEXUSBANK (Nuestro Banco)",
+                EsPropio = true,
+                LimiteDiario = 25000m
+            };
+
+            string tokenTransferencia = !string.IsNullOrWhiteSpace(tokenPreGenerado)
+                ? tokenPreGenerado.Trim()
+                : GenerarTokenTransferencia();
+
+            string conceptoLimpio = string.IsNullOrWhiteSpace(concepto) ? "Transferencia bancaria" : concepto.Trim();
+
+            if (!esInterbancaria || verif.CodigoBanco.Equals(bancoPropio.CodigoBanco, StringComparison.OrdinalIgnoreCase))
+            {
+                // ================= TRANSFERENCIA INTERNA (ENTRE USUARIOS DE NUESTRO BANCO) =================
+                var receptor = _dal.ObtenerUsuarioPorTarjeta(verif.CuentaNormalizada);
+                if (receptor == null)
+                    throw new Exception("El usuario destinatario no existe en nuestro banco.");
+
+                if (receptor.NumeroTarjeta.Equals(emisor.NumeroTarjeta, StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("No puede transferir fondos a su propia cuenta.");
+
+                // 1. Actualizar saldos de ambos usuarios
+                emisor.SaldoActual -= monto;
+                receptor.SaldoActual += monto;
+                _dal.ActualizarSaldo(emisor.NumeroTarjeta, emisor.SaldoActual);
+                _dal.ActualizarSaldo(receptor.NumeroTarjeta, receptor.SaldoActual);
+
+                // 2. Guardar token en el historial del usuario emisor y del usuario receptor
+                _dal.RegistrarTransaccion(new Transaccion(
+                    emisor.NumeroTarjeta,
+                    DateTime.Now,
+                    $"Transferencia a {receptor.Nombre}",
+                    monto,
+                    tokenTransferencia));
+
+                _dal.RegistrarTransaccion(new Transaccion(
+                    receptor.NumeroTarjeta,
+                    DateTime.Now,
+                    $"Transferencia de {emisor.Nombre}",
+                    monto,
+                    tokenTransferencia));
+
+                // 3. Guardar token en el registro del banco
+                var reg = new RegistroTransferenciaBancaria
+                {
+                    TokenTransferencia = tokenTransferencia,
+                    FechaHora = DateTime.Now,
+                    TipoTransferencia = "INTERNA",
+                    BancoOrigen = bancoPropio.CodigoBanco,
+                    CuentaOrigen = emisor.NumeroTarjeta,
+                    NombreOrigen = emisor.Nombre,
+                    BancoDestino = bancoPropio.CodigoBanco,
+                    CuentaDestino = receptor.NumeroTarjeta,
+                    NombreDestino = receptor.Nombre,
+                    Monto = monto,
+                    Concepto = conceptoLimpio,
+                    CupoRestanteBancoOrigen = bancoPropio.DisponibleHoy,
+                    CupoRestanteBancoDestino = bancoPropio.DisponibleHoy,
+                    Estado = "APROBADA"
+                };
+                _dal.RegistrarTransferenciaCompartida(reg);
+
+                _dal.RegistrarEnBitacora(
+                    "Transferencia Interna",
+                    emisor.NumeroTarjeta,
+                    $"Token [{tokenTransferencia}]: Transferencia de Q{monto:N2} a {receptor.Nombre} ({receptor.NumeroTarjeta}). Nuevo saldo: Q{emisor.SaldoActual:N2}.");
+
+                return reg;
+            }
+            else
+            {
+                // ================= TRANSFERENCIA INTERBANCARIA COORDINADA (DIFERENTES BANCOS) =================
+                var bancoDestino = bancos.FirstOrDefault(b => b.CodigoBanco.Equals(verif.CodigoBanco, StringComparison.OrdinalIgnoreCase));
+                if (bancoDestino == null)
+                    throw new Exception($"El banco destino '{verif.CodigoBanco}' no se encuentra registrado.");
+
+                // 1. Coordinar límites de AMBOS bancos (nuestro banco y el banco destino deben tener cupo disponible)
+                if (monto > bancoPropio.DisponibleHoy)
+                {
+                    throw new Exception($"El monto (Q {monto:N2}) excede el límite diario disponible de nuestro banco ({bancoPropio.NombreBanco}: Q {bancoPropio.DisponibleHoy:N2}).");
+                }
+
+                if (monto > bancoDestino.DisponibleHoy)
+                {
+                    throw new Exception($"El monto (Q {monto:N2}) excede el límite diario disponible del banco destino ({bancoDestino.NombreBanco}: Q {bancoDestino.DisponibleHoy:N2}).");
+                }
+
+                // Si el banco destino está en línea en la red local, enviarle IB_TRANSFERIR con el TokenTransferencia por TCP 5000
+                if (bancoDestino.EnLinea && !string.IsNullOrWhiteSpace(bancoDestino.IP) && bancoDestino.IP != "127.0.0.1")
+                {
+                    var envRed = DescubridorRedBancaria.EnviarTransferenciaABancoRemotoTcp(
+                        bancoDestino,
+                        tokenTransferencia,
+                        bancoPropio.CodigoBanco,
+                        emisor.NumeroTarjeta,
+                        emisor.Nombre,
+                        verif.CuentaNormalizada,
+                        verif.NombreTitular,
+                        monto,
+                        conceptoLimpio);
+
+                    if (envRed.respondioRed && !envRed.aprobada)
+                    {
+                        throw new Exception($"El banco destino ({bancoDestino.NombreBanco}) rechazó la transferencia: {envRed.mensaje}");
+                    }
+                }
+
+                // 2. Restar el monto al límite diario de LOS DOS BANCOS coordinadamente
+                bancoPropio.TransferidoHoy += monto;
+                bancoDestino.TransferidoHoy += monto;
+                _dal.GuardarBancosRed(bancos);
+
+                // 3. Debitar saldo a nuestro usuario y acreditar a la cuenta del otro banco
+                emisor.SaldoActual -= monto;
+                _dal.ActualizarSaldo(emisor.NumeroTarjeta, emisor.SaldoActual);
+
+                var cuentasExt = _dal.ObtenerCuentasExternas(bancoDestino.CodigoBanco);
+                var ctaExt = cuentasExt.FirstOrDefault(c => c.NumeroCuenta.Equals(verif.CuentaNormalizada, StringComparison.OrdinalIgnoreCase));
+                if (ctaExt != null)
+                {
+                    ctaExt.SaldoActual += monto;
+                    _dal.GuardarCuentaExterna(ctaExt);
+                }
+
+                // 4. Guardar el TokenTransferencia en el Usuario (Transacciones.csv)
+                _dal.RegistrarTransaccion(new Transaccion(
+                    emisor.NumeroTarjeta,
+                    DateTime.Now,
+                    $"Transf. {bancoDestino.CodigoBanco} ({verif.CuentaNormalizada})",
+                    monto,
+                    tokenTransferencia));
+
+                // 5. Guardar el mismo TokenTransferencia en Nuestro Banco y en El Otro Banco
+                var reg = new RegistroTransferenciaBancaria
+                {
+                    TokenTransferencia = tokenTransferencia,
+                    FechaHora = DateTime.Now,
+                    TipoTransferencia = "INTERBANCARIA",
+                    BancoOrigen = bancoPropio.CodigoBanco,
+                    CuentaOrigen = emisor.NumeroTarjeta,
+                    NombreOrigen = emisor.Nombre,
+                    BancoDestino = bancoDestino.CodigoBanco,
+                    CuentaDestino = verif.CuentaNormalizada,
+                    NombreDestino = verif.NombreTitular,
+                    Monto = monto,
+                    Concepto = conceptoLimpio,
+                    CupoRestanteBancoOrigen = bancoPropio.DisponibleHoy,
+                    CupoRestanteBancoDestino = bancoDestino.DisponibleHoy,
+                    Estado = "APROBADA"
+                };
+                _dal.RegistrarTransferenciaCompartida(reg);
+
+                _dal.RegistrarEnBitacora(
+                    "Transferencia Interbancaria",
+                    emisor.NumeroTarjeta,
+                    $"Token [{tokenTransferencia}]: Q{monto:N2} transferidos a {verif.NombreTitular} ({bancoDestino.CodigoBanco} - Cta {verif.CuentaNormalizada}). Cupo restante {bancoPropio.CodigoBanco}: Q{bancoPropio.DisponibleHoy:N2} | Cupo restante {bancoDestino.CodigoBanco}: Q{bancoDestino.DisponibleHoy:N2}.");
+
+                return reg;
+            }
         }
     }
 }

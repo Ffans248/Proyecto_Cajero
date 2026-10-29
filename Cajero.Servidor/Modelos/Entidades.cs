@@ -58,12 +58,14 @@ namespace Cajero.Servidor.Modelos
         public string Desglose { get; set; } = string.Empty;
         public string CodigoRespuesta { get; set; } = string.Empty;
         public string? MotivoRechazo { get; set; }
+        public string? TokenTransferencia { get; set; }
         public bool Aprobada => CodigoRespuesta == "00";
     }
 
     public class UsuarioDto
     {
         public int IdUsuario { get; set; }
+        public string NumeroCuenta { get; set; } = string.Empty;
         public string Nombre { get; set; } = string.Empty;
         public decimal Saldo { get; set; }
         public decimal LimiteDiario { get; set; }
@@ -75,6 +77,57 @@ namespace Cajero.Servidor.Modelos
         public decimal RetiradoHoy { get; set; }
         public decimal DisponibleHoy { get; set; }
         public DateTime FechaCreacion { get; set; }
+    }
+
+    public class BancoRedDto
+    {
+        public int IdBanco { get; set; }
+        public string CodigoBanco { get; set; } = string.Empty;
+        public string NombreBanco { get; set; } = string.Empty;
+        public string IP { get; set; } = "127.0.0.1";
+        public int Puerto { get; set; } = 5000;
+        public bool EsPropio { get; set; }
+        public decimal LimiteDiario { get; set; }
+        public decimal TransferidoHoy { get; set; }
+        public decimal DisponibleHoy => Math.Max(0m, LimiteDiario - TransferidoHoy);
+        public DateTime FechaUltimoReset { get; set; }
+        public string? CadenaConexionBD { get; set; }
+        public bool Activo { get; set; } = true;
+    }
+
+    public class TransferenciaBancariaDto
+    {
+        public int IdTransferencia { get; set; }
+        public string TokenTransferencia { get; set; } = string.Empty;
+        public string TipoTransferencia { get; set; } = string.Empty; // 'INTERNA' o 'INTERBANCARIA'
+        public string Direccion { get; set; } = string.Empty; // 'INTERNA', 'SALIENTE', 'ENTRANTE'
+        public string BancoOrigen { get; set; } = string.Empty;
+        public string CuentaOrigen { get; set; } = string.Empty;
+        public string NombreOrigen { get; set; } = string.Empty;
+        public string BancoDestino { get; set; } = string.Empty;
+        public string CuentaDestino { get; set; } = string.Empty;
+        public string NombreDestino { get; set; } = string.Empty;
+        public decimal Monto { get; set; }
+        public string Moneda { get; set; } = "GTQ";
+        public string Concepto { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public string CodigoRespuesta { get; set; } = string.Empty;
+        public string? MensajeRespuesta { get; set; }
+        public decimal? CupoRestanteBancoOrigen { get; set; }
+        public decimal? CupoRestanteBancoDestino { get; set; }
+        public string? IdCajero { get; set; }
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaConfirmacion { get; set; }
+    }
+
+    public class CuentaBancoExternoDto
+    {
+        public int IdCuentaExterna { get; set; }
+        public string CodigoBanco { get; set; } = string.Empty;
+        public string NumeroCuenta { get; set; } = string.Empty;
+        public string NombreTitular { get; set; } = string.Empty;
+        public decimal SaldoSimulado { get; set; }
+        public bool Activa { get; set; } = true;
     }
 
     public class AlertaDto
